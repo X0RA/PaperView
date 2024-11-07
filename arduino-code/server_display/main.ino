@@ -28,6 +28,69 @@ ElementManager elementManager;
 TouchDrvGT911 touch;
 uint8_t *framebuffer;
 
+bool fetchAndDisplayImage(uint8_t *framebuffer)
+{
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.println("WiFi not connected!");
+        return false;
+    }
+
+    HTTPClient http;
+    Serial.println("Fetching image data...");
+
+    // Request 100x100 image specifically
+    http.begin("http://192.168.60.75:5000/image?width=100&height=100");
+    int httpCode = http.GET();
+
+    if (httpCode == HTTP_CODE_OK)
+    {
+        // Get width and height from header (4 bytes each)
+        uint32_t width, height;
+        http.getStream().readBytes((char *)&width, 4);
+        http.getStream().readBytes((char *)&height, 4);
+        Serial.printf("Image dimensions: %dx%d\n", width, height);
+
+        // Calculate expected data size (4-bit grayscale = 2 pixels per byte)
+        size_t expectedLen = (width * height) / 2;
+        size_t actualLen = http.getSize() - 8; // Subtract 8 bytes for width/height header
+
+        if (actualLen <= expectedLen)
+        {
+            // Read the image data
+            http.getStream().readBytes((char *)framebuffer, actualLen);
+
+            // Define image area
+            Rect_t area = {
+                .x = 0,
+                .y = 0,
+                .width = width,
+                .height = height};
+
+            // Display the image
+            epd_poweron();
+            epd_draw_grayscale_image(area, framebuffer);
+            epd_poweroff();
+
+            Serial.println("Image displayed successfully");
+            http.end();
+            return true;
+        }
+        else
+        {
+            Serial.println("Image data too large");
+            http.end();
+            return false;
+        }
+    }
+    else
+    {
+        Serial.printf("HTTP GET failed, error: %s\n",
+                      http.errorToString(httpCode).c_str());
+        http.end();
+        return false;
+    }
+}
 void setup()
 {
     Serial.begin(115200);
@@ -160,6 +223,8 @@ bool update_display(uint8_t *framebuffer, bool doClear)
     }
 
     elementManager.processElements(elements, framebuffer);
+
+    fetchAndDisplayImage(framebuffer);
 
     epd_draw_grayscale_image(epd_full_screen(), framebuffer);
 

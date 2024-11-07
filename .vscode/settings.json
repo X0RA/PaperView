@@ -1,0 +1,18 @@
+{
+  "files.associations": {
+    "*.js": "javascriptreact",
+    "*.jsx": "javascript",
+    "array": "cpp",
+    "deque": "cpp",
+    "string": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "vector": "cpp",
+    "string_view": "cpp",
+    "initializer_list": "cpp",
+    "*.tpp": "cpp",
+    "utility": "cpp",
+    "ed047tc1.h": "c",
+    "stdio.h": "c"
+  }
+}

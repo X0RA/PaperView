@@ -7,6 +7,12 @@ String connectToWiFi()
     Serial.println("Connecting to WiFi...");
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
+    // print ssid and pass
+    Serial.print("SSID: ");
+    Serial.println(WIFI_SSID);
+    Serial.print("Password: ");
+    Serial.println(WIFI_PASSWORD);
+
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < WIFI_MAX_ATTEMPTS)
     {

@@ -5,9 +5,9 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+#include "wifi_config.h"
+
 // API Configuration
-#define BASE_URL "http://192.168.60.75:5000"
-// #define BASE_URL "http://172.20.10.11:5000"
 #define MAX_JSON_SIZE 8192 // Adjust based on your needs
 
 // Page definitions

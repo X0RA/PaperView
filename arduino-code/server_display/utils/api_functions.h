@@ -8,7 +8,7 @@
 // API Configuration
 #define BASE_URL "http://192.168.60.75:5000"
 // #define BASE_URL "http://172.20.10.11:5000"
-#define MAX_JSON_SIZE 8192 // Adjust based on your needsx
+#define MAX_JSON_SIZE 8192 // Adjust based on your needs
 
 // Page definitions
 typedef enum
@@ -154,23 +154,5 @@ DynamicJsonDocument parseJsonResponse(const String &jsonResponse)
 
     return doc;
 }
-
-// // Example usage function
-// void exampleApiUsage() {
-//     // GET request example
-// ApiResponse_t getResponse = makeGetRequest(PAGE_HOME);
-// if (getResponse.success) {
-//     DynamicJsonDocument doc = parseJsonResponse(getResponse.response);
-//     // Use the JSON document here
-// }
-
-//     // POST request example
-//     const char* payload = "{\"key\":\"value\"}";
-//     ApiResponse_t postResponse = makePostRequest("/endpoint", payload);
-//     if (postResponse.success) {
-//         DynamicJsonDocument doc = parseJsonResponse(postResponse.response);
-//         // Use the JSON document here
-//     }
-// }
 
 #endif // API_FUNCTIONS_H

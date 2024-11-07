@@ -12,3 +12,4 @@ arduino-code/server_display/wifi_config.h
 arduino-code/push_pixels
 src/tenny_driver.h
 src/tenny_driver.c
+python_server/icons

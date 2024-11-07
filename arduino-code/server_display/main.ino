@@ -19,10 +19,11 @@
 #include "utilities.h"
 
 // my helpers
-#include "drawing/draw_text.h"
-#include "utils/api_functions.h"
 #include "drawing/draw_display.h"
-#include "drawing/draw_button.h"
+#include "utils/api_functions.h"
+#include "drawing/ElementManager.h"
+
+ElementManager elementManager;
 
 TouchDrvGT911 touch;
 uint8_t *framebuffer;
@@ -97,7 +98,7 @@ void setup()
 
     // setup background
     epd_poweron();
-    set_black_display_mode();
+    // set_black_display_mode();
     epd_clear();
     set_background(framebuffer);
     epd_poweroff();
@@ -121,8 +122,6 @@ bool update_display(uint8_t *framebuffer, bool doClear)
         epd_poweroff();
         return false;
     }
-
-    Serial.println("Received response: " + getResponse.response);
 
     // Parse JSON response
     DynamicJsonDocument doc = parseJsonResponse(getResponse.response);
@@ -160,10 +159,8 @@ bool update_display(uint8_t *framebuffer, bool doClear)
         return false;
     }
 
-    processTextElements(elements, framebuffer);
-    processButtonElements(elements, framebuffer);
+    elementManager.processElements(elements, framebuffer);
 
-    // Update the display with the framebuffer
     epd_draw_grayscale_image(epd_full_screen(), framebuffer);
 
     epd_poweroff();
@@ -210,7 +207,7 @@ void loop()
         if (!touchActive && (currentTime - lastTouchUpdate >= TOUCH_DEBOUNCE_TIME))
         {
             Serial.printf("Touch detected at X:%d Y:%d\n", x, y);
-            bool refresh = handleButtonTouches(x, y, framebuffer);
+            bool refresh = elementManager.handleTouch(x, y, framebuffer);
             if (refresh)
             {
                 update_display(framebuffer, false);

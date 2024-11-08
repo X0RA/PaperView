@@ -4,6 +4,7 @@
 #include "DrawElement.h"
 #include "TextElement.h"
 #include "ButtonElement.h"
+#include "ImageElement.h"
 #include <vector>
 
 class ElementManager
@@ -49,6 +50,10 @@ public:
             {
                 newElement = new ButtonElement();
             }
+            else if (strcmp(type, "image") == 0)
+            {
+                newElement = new ImageElement();
+            }
 
             if (newElement && newElement->updateFromJson(element))
             {
@@ -87,7 +92,6 @@ private:
 
     bool storeElement(DrawElement *element)
     {
-        // Find free slot
         for (size_t i = 0; i < MAX_ELEMENTS; i++)
         {
             if (!elements[i])
@@ -166,7 +170,7 @@ private:
                         existing->clearArea(framebuffer);
                         delete existing;
                         elements[i] = newElement;
-                        newElement->draw(framebuffer);
+                        newElement->draw(framebuffer); // Need to update this to just calculate the bounds as to not redraw on the screen which can cause issues
                         return;
                     }
                 }
@@ -184,7 +188,6 @@ private:
     }
 
 public:
-    // Utility methods for external use
     size_t getElementCount() const
     {
         return elementCount;
@@ -220,6 +223,7 @@ public:
                     Serial.printf("Button %d touched\n", button->getId());
 
                     // Show touch state
+                    // TODO: Make this change color or some shit
                     button->setTouched(true);
                     button->draw(framebuffer);
                     epd_draw_grayscale_image(epd_full_screen(), framebuffer);

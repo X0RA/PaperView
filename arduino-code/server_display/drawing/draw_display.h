@@ -9,10 +9,10 @@ typedef struct
 {
     uint8_t background_color;  // 0 = black, 15 = white
     uint8_t foreground_color;  // 0 = black, 15 = white
-    FontProperties primary;    // Main text
-    FontProperties secondary;  // Secondary text
-    FontProperties tertiary;   // Tertiary text
-    FontProperties quaternary; // Quaternary text
+    FontProperties primary;
+    FontProperties secondary;
+    FontProperties tertiary;
+    FontProperties quaternary;
 } display_properties_t;
 
 // Constant display properties for white background

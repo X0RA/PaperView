@@ -18,19 +18,17 @@ public:
         int32_t temp_x = x;
         int32_t temp_y = y;
 
-        // Get text bounds first
         get_text_bounds((GFXfont *)&FiraSans, text,
                         &temp_x, &temp_y,
                         &x1, &y1, &w, &h, NULL);
 
-        // Calculate cursor position based on anchor
         int32_t cursor_x = x;
         int32_t cursor_y = y;
 
         switch (anchor)
         {
         case Anchor::TOP_LEFT:
-            cursor_y = y + h; // Move down by height since text draws from baseline
+            cursor_y = y + h;
             break;
         case Anchor::TOP_RIGHT:
             cursor_x = x - w;
@@ -56,7 +54,7 @@ public:
 
         // Calculate actual text boundaries after anchor adjustments
         int32_t text_left = cursor_x;
-        int32_t text_top = cursor_y - h; // Top of text is baseline minus height
+        int32_t text_top = cursor_y - h;
         int32_t text_right = cursor_x + w;
         int32_t text_bottom = cursor_y;
 

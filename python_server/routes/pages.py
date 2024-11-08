@@ -205,6 +205,18 @@ def home():
                     "toggle-dark", 
                     anchor="br"
                 ),
+                {
+                    "id": 9,
+                    "type": "image",
+                    "text": "/image",
+                    "x": 300,
+                    "y": 301,
+                    "width": 100,
+                    "height": 100,
+                    "anchor": "tl",
+                    "inverted": False,
+                    "callback": "/spotify/like"
+                }
             ]
         }
         print(response)

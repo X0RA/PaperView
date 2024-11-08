@@ -7,7 +7,6 @@
 #include "draw_display.h"
 #include <ArduinoJson.h>
 
-// Base anchor points enum
 enum class Anchor
 {
     TOP_RIGHT,
@@ -64,7 +63,7 @@ public:
     }
 
     virtual void draw(uint8_t *framebuffer) = 0;
-    void clearArea(uint8_t *framebuffer)
+    virtual void clearArea(uint8_t *framebuffer)
     {
         Serial.printf("Clearing element with id %d\n", id);
         const int32_t padding_x = 8;

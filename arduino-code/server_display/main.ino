@@ -31,9 +31,10 @@ ElementManager elementManager;
 TouchDrvGT911 touch;
 uint8_t *framebuffer;
 
-bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, int16_t pos_y = EPD_HEIGHT /2) 
+bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, int16_t pos_y = EPD_HEIGHT / 2, bool invert = false)
 {
-    if (WiFi.status() != WL_CONNECTED) {
+    if (WiFi.status() != WL_CONNECTED)
+    {
         Serial.println("WiFi not connected!");
         return false;
     }
@@ -42,9 +43,10 @@ bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, i
     Serial.println("Fetching image data...");
     String url = String(BASE_URL) + String("/image?width=100&height=100");
     http.begin(url);
-    
     int httpCode = http.GET();
-    if (httpCode != HTTP_CODE_OK) {
+
+    if (httpCode != HTTP_CODE_OK)
+    {
         Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
         http.end();
         return false;
@@ -53,37 +55,40 @@ bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, i
     // Get width and height from header
     uint32_t img_width, img_height;
     if (http.getStream().readBytes((char *)&img_width, 4) != 4 ||
-        http.getStream().readBytes((char *)&img_height, 4) != 4) {
+        http.getStream().readBytes((char *)&img_height, 4) != 4)
+    {
         Serial.println("Failed to read image dimensions");
         http.end();
         return false;
     }
-
     Serial.printf("Image dimensions: %dx%d\n", img_width, img_height);
 
     // Validate image will fit on display
-    if (pos_x + img_width > EPD_WIDTH || pos_y + img_height > EPD_HEIGHT || 
-        pos_x < 0 || pos_y < 0) {
+    if (pos_x + img_width > EPD_WIDTH || pos_y + img_height > EPD_HEIGHT ||
+        pos_x < 0 || pos_y < 0)
+    {
         Serial.println("Image position out of bounds");
         http.end();
         return false;
     }
 
     // Calculate sizes
-    size_t bytes_per_row = img_width / 2;  // 4-bit grayscale = 2 pixels per byte
+    size_t bytes_per_row = img_width / 2; // 4-bit grayscale = 2 pixels per byte
     size_t image_data_size = bytes_per_row * img_height;
     size_t display_bytes_per_row = EPD_WIDTH / 2;
 
     // Allocate temporary buffer for the image data
-    uint8_t* img_buffer = (uint8_t*)malloc(image_data_size);
-    if (!img_buffer) {
+    uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
+    if (!img_buffer)
+    {
         Serial.println("Failed to allocate image buffer");
         http.end();
         return false;
     }
 
     // Read image data
-    if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size) {
+    if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size)
+    {
         Serial.println("Failed to read complete image data");
         free(img_buffer);
         http.end();
@@ -94,46 +99,43 @@ bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, i
     uint16_t x_byte_offset = pos_x / 2;
     uint8_t x_pixel_offset = pos_x % 2;
 
-    // // Copy image data into framebuffer at correct position
-    // for (uint32_t y = 0; y < img_height; y++) {
-    //     uint8_t* src_row = &img_buffer[y * bytes_per_row];
-    //     uint8_t* dst_row = &framebuffer[(y + pos_y) * display_bytes_per_row + x_byte_offset];
-
-    //     if (x_pixel_offset == 0) {
-    //         // Aligned copy
-    //         memcpy(dst_row, src_row, bytes_per_row);
-    //     } else {
-    //         // Unaligned copy - need to shift pixels
-    //         uint8_t carry = 0;
-    //         for (uint32_t x = 0; x < bytes_per_row; x++) {
-    //             uint8_t current = src_row[x];
-    //             dst_row[x] = (carry << 4) | (current >> 4);
-    //             carry = current & 0x0F;
-    //         }
-    //         if (bytes_per_row * 2 + x_pixel_offset <= EPD_WIDTH) {
-    //             dst_row[bytes_per_row] = carry << 4;
-    //         }
-    //     }
-    // }
-
     // Copy image data into framebuffer at correct position
-    for (uint32_t y = 0; y < img_height; y++) {
-        for (uint32_t x = 0; x < img_width; x++) {
+    for (uint32_t y = 0; y < img_height; y++)
+    {
+        for (uint32_t x = 0; x < img_width; x++)
+        {
             // Calculate source byte and nibble
             uint32_t src_byte_idx = (y * bytes_per_row) + (x / 2);
             bool is_high_nibble = (x % 2 == 0);
             uint8_t pixel;
-            
+
             // Extract the pixel value (4 bits)
-            if (is_high_nibble) {
+            if (is_high_nibble)
+            {
                 pixel = (img_buffer[src_byte_idx] >> 4) & 0x0F;
-            } else {
+            }
+            else
+            {
                 pixel = img_buffer[src_byte_idx] & 0x0F;
             }
 
-            // Skip if pixel is white (0xF in 4-bit grayscale)
-            if (pixel == 0x0F) {
-                continue;
+            // Handle inversion and transparency
+            if (invert)
+            {
+                if (pixel == 0x0F)
+                    pixel = 0x00;
+                else if (pixel == 0x00)
+                    pixel = 0x0F;
+
+                // Skip black pixels for transparency
+                if (pixel == 0x00)
+                    continue;
+            }
+            else
+            {
+                // skip white pixels for transparency
+                if (pixel == 0x0F)
+                    continue;
             }
 
             // Calculate destination position
@@ -153,24 +155,8 @@ bool fetchAndDisplayImage(uint8_t *framebuffer, int16_t pos_x = EPD_WIDTH / 2, i
 
     free(img_buffer);
     http.end();
-
-    // Define image area for display
-    Rect_t area = {
-        .x = pos_x,
-        .y = pos_y,
-        .width = img_width,
-        .height = img_height
-    };
-
-    // Display the image
-    epd_poweron();
-    epd_draw_grayscale_image(area, framebuffer);
-    epd_poweroff();
-
-    Serial.println("Image displayed successfully");
     return true;
 }
-
 
 void setup()
 {
@@ -242,7 +228,7 @@ void setup()
 
     // setup background
     epd_poweron();
-    // set_black_display_mode();
+    set_black_display_mode();
     epd_clear();
     set_background(framebuffer);
     epd_poweroff();

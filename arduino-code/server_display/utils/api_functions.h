@@ -8,22 +8,20 @@
 #include "wifi_config.h"
 
 // API Configuration
-#define MAX_JSON_SIZE 8192 // Adjust based on your needs
+#define MAX_JSON_SIZE 8192
 
 // Page definitions
 typedef enum
 {
     PAGE_HOME,
-    PAGE_COUNT // Always keep this last
+    PAGE_COUNT
 } ApiPage_t;
 
 // Page URLs (must match order of ApiPage_t)
 static const char *PAGE_URLS[] = {
     "/home",
-    // Add more pages here
 };
 
-// Structure for API response
 typedef struct
 {
     bool success;

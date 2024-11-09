@@ -127,7 +127,7 @@ public:
                 }
 
                 // Calculate destination position
-                uint32_t dst_x = y + pos_x;
+                uint32_t dst_x = x + pos_x;
                 uint32_t dst_y = y + pos_y;
                 uint32_t dst_byte_idx = (dst_y * display_bytes_per_row) + (dst_x / 2);
                 bool dst_is_high_nibble = (dst_x % 2 == 0);

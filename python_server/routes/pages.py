@@ -6,6 +6,10 @@ from utils.convert import convert_image_to_epd_data, convert_image_bytes_to_epd_
 import datetime
 from utils.spotify import get_track_info, get_album_art, get_track_liked_status
 
+from io import BytesIO
+import subprocess
+import cairosvg
+
 
 EPD_WIDTH = 960
 EPD_HEIGHT = 540
@@ -21,6 +25,24 @@ image_width = 100
 image_height  = 100
 
 
+# def convert_svg_to_png_buffer(svg_path):
+#     png_buffer = BytesIO()
+#     cairosvg.svg2png(url=svg_path, write_to=png_buffer,
+#                      output_width=500, output_height=500, dpi=96)
+#     png_buffer.seek(0)  # Reset buffer position to start
+#     # Convert buffer to PIL Image
+#     return Image.open(png_buffer)
+
+
+# def convert_svg_to_png_buffer(svg_path):
+#     # Run rsvg-convert and capture output
+#     cmd = ['rsvg-convert', '-w', '500', '-h', '500', '-d', '96', svg_path]
+#     result = subprocess.run(cmd, capture_output=True)
+    
+#     # Create BytesIO buffer from the output
+#     png_buffer = BytesIO(result.stdout)
+#     return  Image.open(png_buffer)
+
 @pages.route('/image', methods=['GET'])
 def display():
     try:
@@ -29,9 +51,11 @@ def display():
         height = int(request.args.get('height', image_height))
 
         # Open and process image
-        with Image.open("testtest.png") as image:
+        with Image.open("cat.png") as image:
             width, height, raw_data = convert_image_to_epd_data(image, width, height)
 
+        # png_buffer = convert_svg_to_png_buffer('test.svg')
+        # width, height, raw_data = convert_image_to_epd_data(png_buffer, width, height)
 
         # Create binary stream
         stream = io.BytesIO()

@@ -7,6 +7,7 @@ from routes.pages import pages
 from routes.spotify import spotify
 from routes.layout import layout
 
+# Add react app build
 app = Flask(__name__, static_folder='./react-screen-creator/dist')
 
 app.register_blueprint(pages)
@@ -14,14 +15,9 @@ app.register_blueprint(spotify, url_prefix='/spotify')
 app.register_blueprint(layout, url_prefix='/layout')
 
 # Serve the static assets from /create/assets
-@app.route('/create/assets/<path:path>')
-def serve_assets(path):
-    return send_from_directory(os.path.join(app.static_folder, 'assets'), path)
-
-# Serve vite.svg from /create
-@app.route('/create/vite.svg')
-def serve_vite():
-    return send_from_directory(app.static_folder, 'vite.svg')
+# @app.route('/create/assets/<path:path>')
+# def serve_assets(path):
+#     return send_from_directory(os.path.join(app.static_folder, 'assets'), path)
 
 # Serve the main app
 @app.route('/create', defaults={'path': ''})

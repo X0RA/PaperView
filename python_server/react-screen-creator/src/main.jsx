@@ -6,9 +6,9 @@ import App from './App';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  // <React.StrictMode>
     <DndProvider backend={HTML5Backend}>
       <App />
     </DndProvider>
-  </React.StrictMode>
+  // </React.StrictMode>
 );

@@ -1,39 +1,9 @@
 // Element.jsx
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useDrag } from 'react-dnd';
-import { WHITE_DISPLAY } from './constants';
-
-const getRoundedButtonStyle = (width, height, radius, filled, level) => {
-    // Calculate actual button dimensions including padding
-    const buttonWidth = width;
-    const buttonHeight = height;
-    
-    const backgroundColor = filled ? 
-      (level === 1 ? '#000000' : '#cccccc') : 
-      'transparent';
-    
-    const borderColor = level === 1 ? '#000000' : '#cccccc';
-    
-    return {
-      width: buttonWidth,
-      height: buttonHeight,
-      backgroundColor,
-      border: filled ? 'none' : `2px solid ${borderColor}`,
-      borderRadius: `${radius}px`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: filled ? 
-        (level === 1 ? '#ffffff' : '#000000') : 
-        (level === 1 ? '#000000' : '#cccccc'),
-      fontWeight: level === 1 ? 'bold' : 'normal',
-      padding: '5px 10px', // Default padding from ButtonElement.h
-      boxSizing: 'border-box',
-      fontSize: '16px',
-      position: 'relative',
-    };
-  };
-
+import TextElement from "./elements/TextElement";
+import ButtonElement from "./elements/ButtonElement";
+import ImageElement from "./elements/ImageElement";
 
 function Element({ 
   element, 
@@ -42,68 +12,77 @@ function Element({
   isSelected,
   onSelect 
 }) {
+  const elementRef = useRef(null);
   const [{ isDragging }, dragRef] = useDrag({
-    type: 'element',
+    type: "element",
     item: element,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
-  const { x, y, width, height, text, type, level = 1 } = element;
-  
-  const getTextColor = (level) => {
-    return WHITE_DISPLAY.textColors[level];
+  // Measure and update element dimensions
+  useEffect(() => {
+    if (elementRef.current) {
+      const { offsetWidth, offsetHeight } = elementRef.current;
+      if (offsetWidth !== element.width || offsetHeight !== element.height) {
+        updateElement(element.id, {
+          width: offsetWidth,
+          height: offsetHeight
+        });
+      }
+    }
+  }, [element.text, element.type]);
+
+  // Combine refs
+  const combineRefs = (...refs) => {
+    return (node) => {
+      refs.forEach(ref => {
+        if (typeof ref === 'function') {
+          ref(node);
+        } else if (ref) {
+          ref.current = node;
+        }
+      });
+    };
   };
+
+  const { x, y, text, type, level = 1 } = element;
 
   const renderContent = () => {
     switch (type) {
-      case 'text':
+      case "text":
+        return <TextElement text={text} level={level} />;
+
+      case "button":
         return (
-          <div style={{ 
-            fontSize: '16px',
-            color: getTextColor(level),
-            fontWeight: level === 1 ? 'bold' : 'normal',
-          }}>
-            {text}
-          </div>
+          <ButtonElement
+            text={text}
+            radius={element.radius}
+            filled={element.filled !== false}
+            level={level}
+          />
         );
-      
-        case 'button':
-        return (
-          <div style={getRoundedButtonStyle(
-            width, 
-            height, 
-            element.radius || 20, // Default radius from ExportModal
-            element.filled !== false, // Default to filled
-            level
-          )}>
-            {text}
-          </div>
-        );
-      
-      case 'image':
-        return (
-          <div style={{
-            width,
-            height,
-            border: '1px dashed black'
-          }} />
-        );
+
+      case "image":
+        return <ImageElement width={element.width || 200} height={element.height || 200} />;
+
+      default:
+        return null;
     }
   };
 
   return (
     <div
-      ref={dragRef}
+      ref={combineRefs(dragRef, elementRef)}
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: x,
         top: y,
-        cursor: 'move',
+        cursor: "move",
         opacity: isDragging ? 0.5 : 1,
-        outline: isSelected ? '2px solid #1890ff' : 'none',
-        padding: '4px',
+        outline: isSelected ? "1px solid #1890ff" : "none",
+        padding: "0px",
       }}
       onClick={(e) => {
         e.stopPropagation();
@@ -111,14 +90,14 @@ function Element({
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        const newText = prompt('Enter new text:', text);
+        const newText = prompt("Enter new text:", text);
         if (newText !== null) {
           updateElement(element.id, { text: newText });
         }
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        if (window.confirm('Delete this element?')) {
+        if (window.confirm("Delete this element?")) {
           deleteElement(element.id);
         }
       }}

@@ -1,14 +1,19 @@
 import React from "react";
 import { Modal, Button } from "antd";
+import { calculateAnchorPosition } from './utils';
 
 function ExportModal({ elements, onClose }) {
 	const exportData = elements.map((el) => {
+		const anchorPosition = calculateAnchorPosition(el);
+
 		const base = {
 			id: el.id,
 			type: el.type,
-			x: el.x,
-			y: el.y,
+			x: Math.round(anchorPosition.x),
+			y: Math.round(anchorPosition.y),
 			anchor: el.anchor,
+			width: el.width,
+			height: el.height
 		};
 
 		if (el.type === "text") {
@@ -60,8 +65,7 @@ function ExportModal({ elements, onClose }) {
 					key="save"
 					type="primary"
 					onClick={() => {
-						// send post request
-						fetch("/layout/save-layout", {
+						fetch("http://localhost:5000/layout/save-layout", {
 							method: "POST",
 							headers: {
 								"Content-Type": "application/json",

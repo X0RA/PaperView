@@ -3,51 +3,72 @@
     {
       "id": 1,
       "type": "text",
-      "x": 150,
-      "y": 316,
-      "anchor": "tl",
-      "text": "Sample Text",
+      "x": 960,
+      "y": 0,
+      "anchor": "tr",
+      "width": 105,
+      "height": 29,
+      "text": "Top Right",
       "level": 1
     },
     {
       "id": 2,
       "type": "text",
-      "x": 480,
-      "y": 153,
+      "x": 0,
+      "y": 0,
       "anchor": "tl",
-      "text": "Sample Text",
+      "width": 90,
+      "height": 29,
+      "text": "Top Left",
       "level": 1
     },
     {
       "id": 3,
       "type": "text",
-      "x": 114,
-      "y": 90,
-      "anchor": "tl",
-      "text": "Sample Text",
+      "x": -2,
+      "y": 540,
+      "anchor": "bl",
+      "width": 132,
+      "height": 29,
+      "text": "Bottom Left",
       "level": 1
     },
     {
       "id": 4,
       "type": "text",
-      "x": 313,
-      "y": 122,
-      "anchor": "tl",
-      "text": "Sample Text",
+      "x": 960,
+      "y": 540,
+      "anchor": "br",
+      "width": 147,
+      "height": 29,
+      "text": "Bottom Right",
       "level": 1
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "text",
-      "x": 297,
-      "y": 323,
+      "x": 480,
+      "y": 0,
+      "anchor": "tm",
+      "width": 50,
+      "height": 29,
+      "text": "time",
+      "level": 1
+    },
+    {
+      "id": 7,
+      "type": "text",
+      "x": 0,
+      "y": 270,
       "anchor": "tl",
-      "text": "Sample Text",
+      "width": 114,
+      "height": 29,
+      "text": "track_info",
       "level": 1
     }
   ],
   "metadata": {
-    "created_at": "2024-11-11T22:01:09.286391",
-    "filename": "layout_20241111_220109.json"
+    "created_at": "2024-11-12T02:38:11.132571",
+    "filename": "layout_20241112_023811.json"
   }
 }

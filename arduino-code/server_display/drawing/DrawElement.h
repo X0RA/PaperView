@@ -77,6 +77,7 @@ public:
                 break;
             }
         }
+
         Rect_t clearArea = {
             .x = max(0, min(EPD_WIDTH - 1, bounds.x - padding_x)),
             .y = max(0, min(EPD_HEIGHT - 1, bounds.y - padding_y)),
@@ -89,9 +90,10 @@ public:
             clearArea.width = 0;
         if (clearArea.height < 0)
             clearArea.height = 0;
-
-        Serial.printf("Clear area after clipping: x=%d, y=%d, w=%d, h=%d\n",
-                      clearArea.x, clearArea.y, clearArea.width, clearArea.height);
+        if (clearArea.x >= EPD_WIDTH)
+            clearArea.x = EPD_WIDTH;
+        if (clearArea.y >= EPD_HEIGHT)
+            clearArea.y = EPD_HEIGHT;
 
         int16_t cycles = 1;
         int16_t time = 50;

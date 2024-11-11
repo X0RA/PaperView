@@ -61,6 +61,7 @@ def display():
 def home():
     try:
         track_info = get_track_info()
+        time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # get latest layout file from layouts dir
         latest_layout_path = os.path.join(LAYOUTS_DIR, 'latest.json')
@@ -70,6 +71,16 @@ def home():
         else:
             return jsonify({'error': 'No layout found'}), 404
         
+        # if the layout_data elements "text" equals "track_info" or "time" replace it with the variables
+        for element in layout_data['elements']:
+            if element['text'] == 'track_info':
+                if track_info['artist'] is not None:
+                    element['text'] = f"Now playing: {track_info['title']} by {track_info['artist']}"
+                else:
+                    element['text'] = "Nothing playing"
+            elif element['text'] == 'time':
+                element['text'] = time
+    
         
         response = {
             "clear": False,

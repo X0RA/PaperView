@@ -1,10 +1,12 @@
 // App.jsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Canvas from "./Canvas";
 import Toolbar from "./Toolbar";
 import ElementEditor from "./ElementEditor"; // New component
 import ExportModal from "./ExportModal";
 import { Button, Layout, Typography } from "antd";
+
+import { calculateAnchorPosition, calculateDisplayPosition } from "./utils";
 
 const { Header, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -14,6 +16,56 @@ function App() {
 	const [showExportModal, setShowExportModal] = useState(false);
 	const [selectedElement, setSelectedElement] = useState(null);
 	const elementIdCounter = useRef(1);
+
+	const clearLayout = () => {
+		return new Promise((resolve) => {
+			elementIdCounter.current = 1;
+			setElements([]);
+			setTimeout(() => {
+				setElements(elements.map(element => ({ ...element, new: false })));
+				resolve();
+			}, 50);
+		});
+	};
+
+	const fetchLayout = async () => {
+		try {
+			const response = await fetch('http://localhost:5000/layout/get-layout');
+			if (!response.ok) {
+				throw new Error('Failed to fetch layout');
+			}
+			const data = await response.json();
+
+			await clearLayout();
+
+			// Add IDs and convert positions to display coordinates
+			const elementsWithIds = data.layout.elements.map((element, index) => {
+				// Create a copy of the element with id
+				const elementWithId = {
+					...element,
+					id: index + 1,
+					// Ensure these properties exist with defaults
+					width: element.width || 100,
+					height: element.height || 50,
+					anchor: element.anchor || 'tl',
+				};
+
+				// Calculate display position
+				const displayPos = calculateDisplayPosition(elementWithId);
+
+				return {
+					...elementWithId,
+					x: displayPos.x,
+					y: displayPos.y
+				};
+			});
+
+			setElements(elementsWithIds);
+			elementIdCounter.current = Math.max(...elementsWithIds.map(el => el.id)) + 1;
+		} catch (error) {
+			console.error('Error fetching layout:', error);
+		}
+	};
 
 	const addElement = (element) => {
 		const newElement = {
@@ -29,7 +81,6 @@ function App() {
 			elements.map((el) => {
 				if (el.id === id) {
 					const updatedElement = { ...el, ...newProps };
-					// Update selectedElement if this is the currently selected element
 					if (selectedElement?.id === id) {
 						setSelectedElement(updatedElement);
 					}
@@ -90,12 +141,19 @@ function App() {
 					}}
 				>
 					<Toolbar addElement={addElement} />
-					{selectedElement && (
-						<ElementEditor
-							element={selectedElement}
-							updateElement={updateElement}
-						/>
-					)}
+					<ElementEditor
+						element={
+							selectedElement || {
+								type: "none",
+								x: 0,
+								y: 0,
+								anchor: "tl",
+								level: 1,
+							}
+						}
+						updateElement={updateElement}
+						disabled={!selectedElement}
+					/>
 					<Canvas
 						elements={elements}
 						updateElement={updateElement}
@@ -116,6 +174,17 @@ function App() {
 					>
 						Export JSON
 					</Button>
+					<Button type="primary"
+						style={{
+							marginLeft: "10px",
+							marginTop: "16px",
+							height: "40px",
+							borderRadius: "6px",
+							fontWeight: "500",
+						}}
+						onClick={() => {
+							fetchLayout();
+						}}>Fetch Layout</Button>
 				</div>
 				{showExportModal && (
 					<ExportModal

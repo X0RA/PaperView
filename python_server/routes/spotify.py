@@ -27,12 +27,10 @@ def get_current_track():
         sp = get_spotify_client()
         current_playback = sp.current_playback()
         
-        print(current_playback)
-        
         if current_playback is None or current_playback.get('item') is None:
             return jsonify({
                 'error': 'No track currently playing'
-            }), 404
+            }), 200
 
         track = current_playback['item']
         artists = ', '.join([artist['name'] for artist in track['artists']])

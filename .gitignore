@@ -14,3 +14,4 @@ src/tenny_driver.h
 src/tenny_driver.c
 arduino-code/server_display/utils/wifi_config.h
 .git.bak
+e-ink-placer/node_modules

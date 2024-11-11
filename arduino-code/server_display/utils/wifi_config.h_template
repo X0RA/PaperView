@@ -6,6 +6,9 @@
 #define WIFI_SSID "your_ssid_here"
 #define WIFI_PASSWORD "your_password_here"
 
+// Api URL
+#define BASE_URL "https://api.example.com"
+
 // Optional additional configurations
 #define WIFI_CONNECT_TIMEOUT 10000
 #define WIFI_MAX_ATTEMPTS 20

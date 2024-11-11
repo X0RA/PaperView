@@ -1,0 +1,53 @@
+{
+  "elements": [
+    {
+      "id": 1,
+      "type": "text",
+      "x": 150,
+      "y": 316,
+      "anchor": "tl",
+      "text": "Sample Text",
+      "level": 1
+    },
+    {
+      "id": 2,
+      "type": "text",
+      "x": 480,
+      "y": 153,
+      "anchor": "tl",
+      "text": "Sample Text",
+      "level": 1
+    },
+    {
+      "id": 3,
+      "type": "text",
+      "x": 114,
+      "y": 90,
+      "anchor": "tl",
+      "text": "Sample Text",
+      "level": 1
+    },
+    {
+      "id": 4,
+      "type": "text",
+      "x": 313,
+      "y": 122,
+      "anchor": "tl",
+      "text": "Sample Text",
+      "level": 1
+    },
+    {
+      "id": 5,
+      "type": "text",
+      "x": 297,
+      "y": 323,
+      "anchor": "tl",
+      "text": "Sample Text",
+      "level": 1
+    }
+  ],
+  "metadata": {
+    "created_at": "2024-11-11T22:01:09.286391",
+    "filename": "layout_20241111_220109.json"
+  }
+}

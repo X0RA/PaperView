@@ -1,4 +1,6 @@
 Flask
 Pillow
 spotipy
+python-dotenv
+requests
 # selenium

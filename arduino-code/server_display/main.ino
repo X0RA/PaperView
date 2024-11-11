@@ -6,6 +6,9 @@
 #include "utils/connectWifi.h"
 #include <ArduinoJson.h>
 
+// Web Server (for re-freshing display)
+#include "utils/web_server.h"
+
 // HTTP
 #include <HTTPClient.h>
 
@@ -26,10 +29,14 @@
 // for the base url
 #include "utils/wifi_config.h"
 
-ElementManager elementManager;
 
+ElementManager elementManager;
 TouchDrvGT911 touch;
 uint8_t *framebuffer;
+
+// Web server vars
+bool refreshRequested = false;
+DisplayWebServer webServer(&refreshRequested);
 
 void setup()
 {
@@ -98,6 +105,7 @@ void setup()
     // Connect to Wi-Fi
     String wifiRes = connectToWiFi();
     Serial.println(wifiRes);
+    webServer.begin();
 
     // setup background
     epd_poweron();
@@ -222,6 +230,17 @@ void loop()
     else
     {
         touchActive = false;
+    }
+
+    // Handle web server requests
+    webServer.handle();
+
+    // Check for refresh requests
+    if (refreshRequested) {
+        if (update_display(framebuffer, false)) {
+            lastUpdate = currentTime;
+        }
+        refreshRequested = false;
     }
 
     delay(10);

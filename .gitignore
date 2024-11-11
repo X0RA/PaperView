@@ -15,3 +15,7 @@ src/tenny_driver.c
 arduino-code/server_display/utils/wifi_config.h
 .git.bak
 e-ink-placer/node_modules
+__pycache__
+/python_server/python_env
+/python_server/react-screen-creator/node_modules
+/python_server/layouts/layout_*.json

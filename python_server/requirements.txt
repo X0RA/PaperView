@@ -3,4 +3,5 @@ Pillow
 spotipy
 python-dotenv
 requests
+numpy
 # selenium

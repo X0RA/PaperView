@@ -7,6 +7,7 @@ import datetime
 from utils.spotify import get_track_info, get_album_art, get_track_liked_status
 import os
 import json
+import requests
 
 EPD_WIDTH = 960
 EPD_HEIGHT = 540
@@ -18,28 +19,49 @@ pages = Blueprint('pages', __name__)
 # Configuration
 URL = 'http://localhost:5173/'
 
-image_width = 100
-image_height  = 100
 @pages.route('/image', methods=['GET'])
 def display():
     try:
         # Get dimensions from query parameters or use defaults
-        width = int(request.args.get('width', image_width))
-        height = int(request.args.get('height', image_height))
+        width = int(request.args.get('width', 100))
+        height = int(request.args.get('height', 100))
+        image_name = request.args.get('image', 'adjustments-vertical')
+        solid = request.args.get('solid', True)
+        image_name += '.png'
 
-        # Open and process image
-        with Image.open("icons/outline_png/adjustments-vertical.png") as image:
-            width, height, raw_data = convert_image_to_epd_data(image, width, height)
-        
         # Create binary stream
         stream = io.BytesIO()
 
+        if image_name == 'album-art.png':
+            # Handle album art case
+            album_art = get_album_art()
+            if album_art is not None and 'url' in album_art:
+                # Download album art to memory
+                response = requests.get(album_art['url'])
+                if response.status_code == 200:
+                    # Load image from memory buffer
+                    image_data = io.BytesIO(response.content)
+                    with Image.open(image_data) as image:
+                        width, height, raw_data = convert_image_to_epd_data(image, width, height)
+                else:
+                    raise Exception("Failed to download album art")
+            else:
+                raise FileNotFoundError("No album art available")
+        else:
+            # Handle regular icon case
+            if solid:
+                file = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../icons/solid_png', image_name))
+            else:
+                file = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../icons/outline_png', image_name))
+            
+            # Open and process image
+            with Image.open(file) as image:
+                width, height, raw_data = convert_image_to_epd_data(image, width, height)
+
         # Pack width and height as 32-bit unsigned integers
         stream.write(struct.pack('<II', width, height))
-
         # Write the processed image data
         stream.write(raw_data)
-
         # Reset stream position
         stream.seek(0)
 
@@ -49,12 +71,12 @@ def display():
             download_name='image.bin',
             as_attachment=True
         )
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        print(f"File not found error: {str(e)}")
         return jsonify({'error': 'Image file not found'}), 404
     except Exception as e:
         print(f"Error in display route: {str(e)}")
         return jsonify({'error': str(e)}), 500
-        
 
 
 @pages.route('/home', methods=['GET'])

@@ -65,6 +65,19 @@
       "height": 29,
       "text": "track_info",
       "level": 1
+    },
+    {
+      "id": 9,
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "anchor": "tl",
+      "width": 500,
+      "height": 500,
+      "text": "/image?image=album-art",
+      "level": 1,
+      "callback": "/api/image/8",
+      "inverted": false
     }
   ],
   "metadata": {

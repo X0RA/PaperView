@@ -28,7 +28,9 @@ public:
 
         HTTPClient http;
         Serial.println("Fetching image data...");
-        String url = String(BASE_URL) + String(text) + String("?width=") + String(width) + String("&height=") + String(height);
+        String url = String(BASE_URL) + String(text) + String("&width=") + String(width) + String("&height=") + String(height);
+
+        Serial.println("URL: " + url);
 
         http.begin(url);
         int httpCode = http.GET();

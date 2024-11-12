@@ -1,6 +1,6 @@
 // ElementEditor.jsx
 import React from 'react';
-import { Card, Select, Space, InputNumber } from 'antd';
+import { Card, Select, Space, InputNumber, Row, Col } from 'antd';
 import { WHITE_DISPLAY } from './constants';
 import { calculateAnchorPosition, calculateDisplayPosition } from './utils';
 
@@ -11,7 +11,7 @@ function ElementEditor({ element, updateElement, disabled = false }) {
 	const currentAnchor = element.anchor || "tl";
 	const currentLevel = element.level || 1;
 
-  const anchorPosition = calculateAnchorPosition(element);
+	const anchorPosition = calculateAnchorPosition(element);
 
 	const anchorOptions = [
 		{ value: "tl", label: "Top Left" },
@@ -49,63 +49,49 @@ function ElementEditor({ element, updateElement, disabled = false }) {
 			}}
 			size="small"
 		>
-			<Space direction="vertical" style={{ width: "100%" }}>
-				<div>
-					<label style={{ display: "block", marginBottom: "4px" }}>
-						Position:
-					</label>
-					<Space>
-					  <InputNumber
-              prefix="X:"
-              value={Math.round(anchorPosition.x)}
-              onChange={(value) => {
-                const newPos = calculateDisplayPosition({
-                  ...element,
-                  x: value
-                });
-                handlePositionChange('x', newPos.x);
-              }}
-            />
-            <InputNumber
-              prefix="Y:"
-              value={Math.round(anchorPosition.y)}
-              onChange={(value) => {
-                const newPos = calculateDisplayPosition({
-                  ...element,
-                  y: value
-                });
-                handlePositionChange('y', newPos.y);
-              }}
-            />
-					</Space>
-				</div>
-
-				<div>
-					<label style={{ display: "block", marginBottom: "4px" }}>
-						Anchor:
-					</label>
-					<Select
-						style={{ width: "100%" }}
-						value={currentAnchor}
-						onChange={handleAnchorChange}
-					>
-						{anchorOptions.map((option) => (
-							<Option key={option.value} value={option.value}>
-								{option.label}
-							</Option>
-						))}
-					</Select>
-				</div>
-
-				{(element.type === "text" || element.type === "button") && (
-					<div>
-						<label style={{ display: "block", marginBottom: "4px" }}>
-							Text Level:
-						</label>
+			<Space direction="vertical" style={{ width: "100%" }} size="middle">
+				<Row gutter={12}>
+					<Col>
+						<InputNumber
+							prefix="X:"
+							value={Math.round(anchorPosition.x)}
+							onChange={(value) => {
+								const newPos = calculateDisplayPosition({ ...element, x: value });
+								handlePositionChange('x', newPos.x);
+							}}
+							style={{ width: '80px' }}
+						/>
+					</Col>
+					<Col>
+						<InputNumber
+							prefix="Y:"
+							value={Math.round(anchorPosition.y)}
+							onChange={(value) => {
+								const newPos = calculateDisplayPosition({ ...element, y: value });
+								handlePositionChange('y', newPos.y);
+							}}
+							style={{ width: '80px' }}
+						/>
+					</Col>
+					<Col>
 						<Select
-							style={{ width: "100%" }}
+							style={{ width: "120px" }}
+							value={currentAnchor}
+							onChange={handleAnchorChange}
+						>
+							{anchorOptions.map((option) => (
+								<Option key={option.value} value={option.value}>
+									{option.label}
+								</Option>
+							))}
+						</Select>
+					</Col>
+					<Col>
+						<Select
+							style={{ width: "120px" }}
 							value={currentLevel}
 							onChange={handleLevelChange}
+							disabled={element.type !== "text" && element.type !== "button"}
 						>
 							{[1, 2, 3, 4].map((level) => (
 								<Option key={level} value={level}>
@@ -120,61 +106,55 @@ function ElementEditor({ element, updateElement, disabled = false }) {
 								</Option>
 							))}
 						</Select>
-					</div>
-				)}
-				{element.type === "button" && (
-					<>
-						<div>
-							<label style={{ display: "block", marginBottom: "4px" }}>
-								Button Style:
-							</label>
-							<Space>
-								<InputNumber
-									prefix="Radius:"
-									value={element.radius || 20}
-									min={0}
-									max={35}
-									onChange={(value) =>
-										updateElement(element.id, { radius: value })
-									}
-								/>
-								<InputNumber
-									prefix="Padding X:"
-									value={element.padding_x || 10}
-									min={0}
-									max={100}
-									onChange={(value) =>
-										updateElement(element.id, { padding_x: value })
-									}
-								/>
-								<InputNumber
-									prefix="Padding Y:"
-									value={element.padding_y || 5}
-									min={0}
-									max={50}
-									onChange={(value) =>
-										updateElement(element.id, { padding_y: value })
-									}
-								/>
-							</Space>
-						</div>
-						<div>
-							<label style={{ display: "block", marginBottom: "4px" }}>
-								Fill Style:
-							</label>
-							<Select
-								style={{ width: "100%" }}
-								value={element.filled !== false}
-								onChange={(value) =>
-									updateElement(element.id, { filled: value })
-								}
-							>
-								<Option value={true}>Filled</Option>
-								<Option value={false}>Outlined</Option>
-							</Select>
-						</div>
-					</>
-				)}
+					</Col>
+					<Col>
+						<Select
+							style={{ width: "120px" }}
+							value={element.filled !== false}
+							onChange={(value) => updateElement(element.id, { filled: value })}
+							disabled={element.type !== "button"}
+						>
+							<Option value={true}>Filled</Option>
+							<Option value={false}>Outlined</Option>
+						</Select>
+					</Col>
+				</Row>
+
+				<Row gutter={12}>
+					<Col>
+						<InputNumber
+							prefix="R:"
+							value={element.radius || 20}
+							min={0}
+							max={35}
+							onChange={(value) => updateElement(element.id, { radius: value })}
+							style={{ width: '80px' }}
+							disabled={element.type !== "button"}
+						/>
+					</Col>
+					<Col>
+						<InputNumber
+							prefix="PX:"
+							value={element.padding_x || 10}
+							min={0}
+							max={100}
+							onChange={(value) => updateElement(element.id, { padding_x: value })}
+							style={{ width: '80px' }}
+							disabled={element.type !== "button"}
+						/>
+					</Col>
+					<Col>
+						<InputNumber
+							prefix="PY:"
+							value={element.padding_y || 5}
+							min={0}
+							max={50}
+							onChange={(value) => updateElement(element.id, { padding_y: value })}
+							style={{ width: '80px' }}
+							disabled={element.type !== "button"}
+						/>
+					</Col>
+				</Row>
 			</Space>
 		</Card>
 	);

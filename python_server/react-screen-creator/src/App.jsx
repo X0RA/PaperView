@@ -11,6 +11,8 @@ import { calculateAnchorPosition, calculateDisplayPosition } from "./utils";
 const { Header, Content, Footer } = Layout;
 const { Title } = Typography;
 
+const API_BASE_URL = 'http://localhost:5000';
+
 function App() {
 	const [elements, setElements] = useState([]);
 	const [showExportModal, setShowExportModal] = useState(false);
@@ -21,22 +23,19 @@ function App() {
 		return new Promise((resolve) => {
 			elementIdCounter.current = 1;
 			setElements([]);
-			setTimeout(() => {
-				setElements(elements.map(element => ({ ...element, new: false })));
 				resolve();
-			}, 50);
 		});
 	};
 
 	const fetchLayout = async () => {
 		try {
-			const response = await fetch('http://localhost:5000/layout/get-layout');
+			const response = await fetch(`${API_BASE_URL}/layout/get-layout`);
 			if (!response.ok) {
 				throw new Error('Failed to fetch layout');
 			}
 			const data = await response.json();
 
-			await clearLayout();
+				await clearLayout();
 
 			// Add IDs and convert positions to display coordinates
 			const elementsWithIds = data.layout.elements.map((element, index) => {

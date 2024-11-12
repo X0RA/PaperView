@@ -19,6 +19,40 @@ pages = Blueprint('pages', __name__)
 # Configuration
 URL = 'http://localhost:5173/'
 
+def process_album_art(width, height):
+    """Handle fetching and processing of Spotify album art."""
+    album_art = get_album_art()
+    if not album_art or 'url' not in album_art:
+        raise FileNotFoundError("No album art available")
+    
+    response = requests.get(album_art['url'])
+    if response.status_code != 200:
+        raise Exception("Failed to download album art")
+    
+    image_data = io.BytesIO(response.content)
+    with Image.open(image_data) as image:
+        return convert_image_to_epd_data(image, width, height)
+
+def process_icon(image_name, solid, width, height):
+    """Handle processing of local icon files."""
+    icon_type = 'solid_png' if solid else 'outline_png'
+    file_path = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), 
+        f'../icons/{icon_type}', 
+        image_name
+    ))
+    
+    with Image.open(file_path) as image:
+        return convert_image_to_epd_data(image, width, height)
+
+def create_binary_response(width, height, raw_data):
+    """Create binary response stream with image data."""
+    stream = io.BytesIO()
+    stream.write(struct.pack('<II', width, height))
+    stream.write(raw_data)
+    stream.seek(0)
+    return stream
+
 @pages.route('/image', methods=['GET'])
 def display():
     try:
@@ -29,48 +63,21 @@ def display():
         solid = request.args.get('solid', True)
         image_name += '.png'
 
-        # Create binary stream
-        stream = io.BytesIO()
-
+        # Process image based on type
         if image_name == 'album-art.png':
-            # Handle album art case
-            album_art = get_album_art()
-            if album_art is not None and 'url' in album_art:
-                # Download album art to memory
-                response = requests.get(album_art['url'])
-                if response.status_code == 200:
-                    # Load image from memory buffer
-                    image_data = io.BytesIO(response.content)
-                    with Image.open(image_data) as image:
-                        width, height, raw_data = convert_image_to_epd_data(image, width, height)
-                else:
-                    raise Exception("Failed to download album art")
-            else:
-                raise FileNotFoundError("No album art available")
+            width, height, raw_data = process_album_art(width, height)
         else:
-            # Handle regular icon case
-            if solid:
-                file = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../icons/solid_png', image_name))
-            else:
-                file = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../icons/outline_png', image_name))
-            
-            # Open and process image
-            with Image.open(file) as image:
-                width, height, raw_data = convert_image_to_epd_data(image, width, height)
+            width, height, raw_data = process_icon(image_name, solid, width, height)
 
-        # Pack width and height as 32-bit unsigned integers
-        stream.write(struct.pack('<II', width, height))
-        # Write the processed image data
-        stream.write(raw_data)
-        # Reset stream position
-        stream.seek(0)
-
+        # Create and return binary response
+        stream = create_binary_response(width, height, raw_data)
         return send_file(
             stream,
             mimetype='application/octet-stream',
             download_name='image.bin',
             as_attachment=True
         )
+
     except FileNotFoundError as e:
         print(f"File not found error: {str(e)}")
         return jsonify({'error': 'Image file not found'}), 404

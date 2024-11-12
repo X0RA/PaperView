@@ -31,19 +31,19 @@ def process_album_art(width, height):
     
     image_data = io.BytesIO(response.content)
     with Image.open(image_data) as image:
-        return convert_image_to_epd_data(image, width, height)
+        return convert_image_to_epd_data(image, width, height, process_image=True)
 
-def process_icon(image_name, solid, width, height):
+def process_icon(image_name, filled, width, height):
     """Handle processing of local icon files."""
-    icon_type = 'solid_png' if solid else 'outline_png'
+    icon_type = 'solid_png' if filled else 'outline_png'
     file_path = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), 
         f'../icons/{icon_type}', 
         image_name
     ))
-    
+
     with Image.open(file_path) as image:
-        return convert_image_to_epd_data(image, width, height)
+        return convert_image_to_epd_data(image, width, height, process_image=False)
 
 def create_binary_response(width, height, raw_data):
     """Create binary response stream with image data."""
@@ -53,21 +53,20 @@ def create_binary_response(width, height, raw_data):
     stream.seek(0)
     return stream
 
-@pages.route('/image', methods=['GET'])
-def display():
+@pages.route('/icon/<name>', methods=['GET'])
+def get_icon(name):
     try:
         # Get dimensions from query parameters or use defaults
         width = int(request.args.get('width', 100))
         height = int(request.args.get('height', 100))
-        image_name = request.args.get('image', 'adjustments-vertical')
-        solid = request.args.get('solid', True)
-        image_name += '.png'
+        filled = request.args.get('filled', True)
+        
+        # Add .png if not present
+        if not name.endswith('.png'):
+            name += '.png'
 
-        # Process image based on type
-        if image_name == 'album-art.png':
-            width, height, raw_data = process_album_art(width, height)
-        else:
-            width, height, raw_data = process_icon(image_name, solid, width, height)
+        # Process icon
+        width, height, raw_data = process_icon(name, filled, width, height)
 
         # Create and return binary response
         stream = create_binary_response(width, height, raw_data)
@@ -80,11 +79,36 @@ def display():
 
     except FileNotFoundError as e:
         print(f"File not found error: {str(e)}")
-        return jsonify({'error': 'Image file not found'}), 404
+        return jsonify({'error': f'Icon {name} not found'}), 404
     except Exception as e:
-        print(f"Error in display route: {str(e)}")
+        print(f"Error in icon route: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@pages.route('/album-art/', methods=['GET'])
+def get_current_album_art():
+    try:
+        # Get dimensions from query parameters or use defaults
+        width = int(request.args.get('width', 100))
+        height = int(request.args.get('height', 100))
+
+        # Process album art
+        width, height, raw_data = process_album_art(width, height)
+
+        # Create and return binary response
+        stream = create_binary_response(width, height, raw_data)
+        return send_file(
+            stream,
+            mimetype='application/octet-stream',
+            download_name='image.bin',
+            as_attachment=True
+        )
+
+    except FileNotFoundError as e:
+        print(f"File not found error: {str(e)}")
+        return jsonify({'error': 'Current album art not found'}), 404
+    except Exception as e:
+        print(f"Error in album-art route: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @pages.route('/home', methods=['GET'])
 def home():

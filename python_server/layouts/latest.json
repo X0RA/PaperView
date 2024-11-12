@@ -74,10 +74,29 @@
       "anchor": "tl",
       "width": 500,
       "height": 500,
-      "text": "/image?image=album-art",
+      "text": "",
       "level": 1,
       "callback": "/api/image/8",
-      "inverted": false
+      "inverted": false,
+      "filled": true,
+      "name": "something",
+      "path": "album-art"
+    },
+    {
+      "id": 10,
+      "type": "image",
+      "x": 500,
+      "y": 20,
+      "anchor": "tl",
+      "width": 100,
+      "height": 100,
+      "text": "bell-alert",
+      "level": 1,
+      "callback": "/api/image/8",
+      "inverted": false,
+      "filled": false,
+      "name": "bell-alert",
+      "path": "icon"
     }
   ],
   "metadata": {

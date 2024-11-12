@@ -253,7 +253,7 @@ def analyze_and_adjust_image(im):
     
     return im
 
-def convert_image_to_epd_data(image, target_width=1200, target_height=826, brightness_factor = 1.3):
+def convert_image_to_epd_data(image, target_width=1200, target_height=826, process_image = True):
     """
     Convert a PIL Image to EPD display format raw data with specific dimensions.
     
@@ -270,8 +270,10 @@ def convert_image_to_epd_data(image, target_width=1200, target_height=826, brigh
         raise ValueError("Target width must be even!")
 
     im = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    
-    im = analyze_and_adjust_image(im)
+    if process_image:
+        im = analyze_and_adjust_image(im)
+    else:
+        im = im.convert(mode="L")
 
     # Get dimensions
     width = im.size[0]

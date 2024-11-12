@@ -6,17 +6,48 @@
 #include <HTTPClient.h>
 #include "../utils/api_functions.h"
 
+
 class ImageElement : public DrawElement
 {
 private:
     char *callback;
+    char *name;
+    char *path;
     bool touched;
     bool inverted;
+    bool filled;
     int16_t width;
     int16_t height;
+    // The following are inherited from DrawElement and are here for reference.
+    // uint16_t id;
+    // char *text; // Unused now
+    // int16_t x;
+    // int16_t y;
+    // Anchor anchor;
+    // FontProperties props;
+    // Rect_t bounds;
+    // bool active;
+    // bool changed;
+    // bool updated;
 
 public:
-    ImageElement() : DrawElement() {}
+    ImageElement() : DrawElement() {
+        callback = nullptr;
+        name = nullptr;
+        path = nullptr;
+    }
+
+    ~ImageElement() {
+        if (callback) {
+            free(callback);
+        }
+        if (name) {
+            free(name);
+        }
+        if (path) {
+            free(path);
+        }
+    }
 
     void draw(uint8_t *framebuffer) override
     {
@@ -28,7 +59,24 @@ public:
 
         HTTPClient http;
         Serial.println("Fetching image data...");
-        String url = String(BASE_URL) + String(text) + String("&width=") + String(width) + String("&height=") + String(height);
+
+        String url = String(BASE_URL) + "/";
+        
+        if (strncmp(path, "icon", 4) == 0) {
+            url += String(path) + "/" + String(name) + 
+                   "?width=" + String(width) + 
+                   "&height=" + String(height) +
+                   "&filled=" + String(filled);
+        }
+        else if (strncmp(path, "album-art", 9) == 0) {
+            url += String(path) + "/" +
+                   "?width=" + String(width) +
+                   "&height=" + String(height); 
+        }
+        else {
+            Serial.println("Invalid path type");
+            return;
+        }
 
         Serial.println("URL: " + url);
 
@@ -193,6 +241,8 @@ public:
 
         const char *textContent = element["text"] | "";
         const char *callbackContent = element["callback"] | "";
+        const char *nameContent = element["name"] | "";
+        const char *pathContent = element["path"] | "";
 
         id = element["id"].as<uint16_t>();
         text = strdup(textContent);
@@ -204,8 +254,11 @@ public:
         changed = true;
         updated = true;
         callback = strdup(callbackContent);
+        name = strdup(nameContent);
+        path = strdup(pathContent);
         touched = false;
         inverted = element["inverted"] | false;
+        filled = element["filled"] | true;
         width = element["width"].as<int16_t>();
         height = element["height"].as<int16_t>();
         return true;

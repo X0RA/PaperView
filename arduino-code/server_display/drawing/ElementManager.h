@@ -162,6 +162,7 @@ private:
         {
             if (!existing->isEqual(*newElement))
             {
+                Serial.printf("Updating element %d\n", existing->getId());
                 // Find index of existing element
                 for (size_t i = 0; i < MAX_ELEMENTS; i++)
                 {

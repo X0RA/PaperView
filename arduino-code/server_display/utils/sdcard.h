@@ -1,3 +1,6 @@
+#ifndef SD_CARD_H
+#define SD_CARD_H
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <FS.h>
@@ -71,7 +74,10 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 void createDir(fs::FS &fs, const char *path)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Creating Dir: %s\n", path);
     if (fs.mkdir(path))
     {
@@ -85,7 +91,10 @@ void createDir(fs::FS &fs, const char *path)
 
 void removeDir(fs::FS &fs, const char *path)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Removing Dir: %s\n", path);
     if (fs.rmdir(path))
     {
@@ -99,7 +108,10 @@ void removeDir(fs::FS &fs, const char *path)
 
 void readFile(fs::FS &fs, const char *path)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Reading file: %s\n", path);
 
     File file = fs.open(path);
@@ -119,7 +131,10 @@ void readFile(fs::FS &fs, const char *path)
 
 void writeFile(fs::FS &fs, const char *path, const char *message)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Writing file: %s\n", path);
 
     File file = fs.open(path, FILE_WRITE);
@@ -141,7 +156,10 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
 
 void appendFile(fs::FS &fs, const char *path, const char *message)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Appending to file: %s\n", path);
 
     File file = fs.open(path, FILE_APPEND);
@@ -163,7 +181,10 @@ void appendFile(fs::FS &fs, const char *path, const char *message)
 
 void renameFile(fs::FS &fs, const char *path1, const char *path2)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Renaming file %s to %s\n", path1, path2);
     if (fs.rename(path1, path2))
     {
@@ -177,7 +198,10 @@ void renameFile(fs::FS &fs, const char *path1, const char *path2)
 
 void deleteFile(fs::FS &fs, const char *path)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     Serial.printf("Deleting file: %s\n", path);
     if (fs.remove(path))
     {
@@ -191,7 +215,10 @@ void deleteFile(fs::FS &fs, const char *path)
 
 void testFileIO(fs::FS &fs, const char *path)
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     File file = fs.open(path);
     static uint8_t buf[512];
     size_t len = 0;
@@ -241,7 +268,10 @@ void testFileIO(fs::FS &fs, const char *path)
 
 void testSD()
 {
-    if (!cardMounted) { return; }
+    if (!cardMounted)
+    {
+        return;
+    }
     uint8_t cardType = SD.cardType();
 
     if (cardType == CARD_NONE)
@@ -286,3 +316,61 @@ void testSD()
     Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
     Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
 }
+
+bool saveImageToSD(String filename, uint8_t* img_buffer, uint32_t img_width, uint32_t img_height)
+{
+    if (!cardMounted)
+    {
+        return false;
+    }
+
+
+    // Make sure the path exists
+    if (filename.indexOf("/") != -1) {
+        String dir = filename.substring(0, filename.lastIndexOf("/"));
+        if (!SD.exists(dir)) {
+            if (!SD.mkdir(dir)) {
+                Serial.println("Failed to create directory");
+                return false;
+            }
+        }
+    }
+
+    Serial.println("Saving image to SD card: " + filename);
+    File file = SD.open(filename, FILE_WRITE);
+    
+    if (!file)
+    {
+        Serial.println("Failed to open file for writing");
+        return false;
+    }
+
+    size_t bytes_per_row = img_width / 2;
+    size_t image_data_size = bytes_per_row * img_height;
+    
+    // Write dimensions
+    if (file.write((uint8_t*)&img_width, 4) != 4) {
+        Serial.println("Failed to write width");
+        file.close();
+        return false;
+    }
+    
+    if (file.write((uint8_t*)&img_height, 4) != 4) {
+        Serial.println("Failed to write height");
+        file.close();
+        return false;
+    }
+    
+    // Write image data
+    if (file.write(img_buffer, image_data_size) != image_data_size) {
+        Serial.println("Failed to write image data");
+        file.close();
+        return false;
+    }
+
+    file.close();
+    Serial.println("Successfully saved image to SD card");
+    return true;
+}
+
+#endif // SD_CARD_H

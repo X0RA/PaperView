@@ -13,6 +13,7 @@
     "*.tpp": "cpp",
     "utility": "cpp",
     "ed047tc1.h": "c",
-    "stdio.h": "c"
+    "stdio.h": "c",
+    "typeinfo": "cpp"
   }
 }

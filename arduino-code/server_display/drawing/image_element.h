@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include "../utils/api_functions.h"
 #include "../managers/display_manager.h"
+#include "../utils/sdcard.h"
 
 
 class ImageElement : public DrawElement
@@ -30,6 +31,95 @@ private:
     // bool active;
     // bool changed;
     // bool updated;
+
+    bool fetchImageFromServer(uint8_t* img_buffer, uint32_t& img_width, uint32_t& img_height) {
+        HTTPClient http;
+        String url = String(BASE_URL) + "/image/";
+        
+        if (strncmp(path, "icon", 4) == 0) {
+            url += String(path) + "/" + String(name) + 
+                   "?width=" + String(width) + 
+                   "&height=" + String(height) +
+                   "&filled=" + String(filled);
+        }
+        else if (strncmp(path, "album-art", 9) == 0) {
+            url += String(path) + "/" +
+                   "?width=" + String(width) +
+                   "&height=" + String(height); 
+        }
+        else {
+            Serial.println("Invalid path type");
+            return false;
+        }
+
+        Serial.println("URL: " + url);
+        http.begin(url);
+        int httpCode = http.GET();
+
+        if (httpCode != HTTP_CODE_OK) {
+            Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+            http.end();
+            return false;
+        }
+
+        // Get dimensions from header
+        if (http.getStream().readBytes((char *)&img_width, 4) != 4 ||
+            http.getStream().readBytes((char *)&img_height, 4) != 4) {
+            Serial.println("Failed to read image dimensions");
+            http.end();
+            return false;
+        }
+
+        // Calculate size and read image data
+        size_t bytes_per_row = img_width / 2;
+        size_t image_data_size = bytes_per_row * img_height;
+        
+        if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size) {
+            Serial.println("Failed to read complete image data");
+            http.end();
+            return false;
+        }
+
+        http.end();
+        Serial.println("Fetched image from server");
+        return true;
+    }
+
+    bool readImageFromSD(uint8_t* img_buffer, uint32_t& img_width, uint32_t& img_height) {
+        String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);        
+        Serial.println("Checking if image exists on SD card: " + filename);
+        if (!SD.exists(filename)) {
+            Serial.println("Image not found on SD card");
+            return false;
+        }
+
+        File file = SD.open(filename, FILE_READ);
+        if (!file) {
+            Serial.println("Failed to open image file");
+            return false;
+        }
+
+        // Read dimensions
+        if (file.read((uint8_t*)&img_width, 4) != 4 ||
+            file.read((uint8_t*)&img_height, 4) != 4) {
+            file.close();
+            Serial.println("Failed to read image dimensions");
+            return false;
+        }
+
+        // Read image data
+        size_t bytes_per_row = img_width / 2;
+        size_t image_data_size = bytes_per_row * img_height;
+        if (file.read(img_buffer, image_data_size) != image_data_size) {
+            file.close();
+            Serial.println("Failed to read image data");
+            return false;
+        }
+
+        file.close();
+        Serial.println("Read image from SD card");
+        return true;
+    }
 
 public:
     ImageElement() : DrawElement() {
@@ -59,79 +149,39 @@ public:
             return;
         }
 
-        HTTPClient http;
-        Serial.println("Fetching image data...");
-
-        String url = String(BASE_URL) + "/image/";
-        
-        if (strncmp(path, "icon", 4) == 0) {
-            url += String(path) + "/" + String(name) + 
-                   "?width=" + String(width) + 
-                   "&height=" + String(height) +
-                   "&filled=" + String(filled);
-        }
-        else if (strncmp(path, "album-art", 9) == 0) {
-            url += String(path) + "/" +
-                   "?width=" + String(width) +
-                   "&height=" + String(height); 
-        }
-        else {
-            Serial.println("Invalid path type");
-            return;
-        }
-
-        Serial.println("URL: " + url);
-
-        http.begin(url);
-        int httpCode = http.GET();
-
-        if (httpCode != HTTP_CODE_OK)
-        {
-            Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
-            http.end();
-            return;
-        }
-
-        // Get width and height from header
         uint32_t img_width, img_height;
-        if (http.getStream().readBytes((char *)&img_width, 4) != 4 ||
-            http.getStream().readBytes((char *)&img_height, 4) != 4)
-        {
-            Serial.println("Failed to read image dimensions");
-            http.end();
+        size_t bytes_per_row = width / 2;
+        size_t image_data_size = bytes_per_row * height;
+        
+        uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
+        if (!img_buffer) {
+            Serial.println("Failed to allocate image buffer");
             return;
         }
-        Serial.printf("Image dimensions: %dx%d\n", img_width, img_height);
+
+        bool success = false;
+        if (isCardMounted()) {
+            success = readImageFromSD(img_buffer, img_width, img_height);
+        }
+        
+        if (!success) {
+            success = fetchImageFromServer(img_buffer, img_width, img_height);
+            if (success) {
+                String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);
+                saveImageToSD(filename, img_buffer, img_width, img_height);
+            }
+        }
+
+        if (!success) {
+            free(img_buffer);
+            return;
+        }
 
         // Validate image will fit on display
         if (x + img_width > EPD_WIDTH || y + img_height > EPD_HEIGHT ||
-            x < 0 || y < 0)
-        {
+            x < 0 || y < 0) {
             Serial.println("Image position out of bounds");
-            http.end();
-            return;
-        }
-
-        // Calculate sizes
-        size_t bytes_per_row = img_width / 2; // 4-bit grayscale = 2 pixels per byte
-        size_t image_data_size = bytes_per_row * img_height;
-        size_t display_bytes_per_row = EPD_WIDTH / 2;
-
-        // Allocate temporary buffer for the image data
-        uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
-        if (!img_buffer)
-        {
-            Serial.println("Failed to allocate image buffer");
-            http.end();
-            return;
-        }
-
-        // Read image data
-        if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size)
-        {
-            Serial.println("Failed to read complete image data");
             free(img_buffer);
-            http.end();
             return;
         }
 
@@ -181,7 +231,7 @@ public:
                 // Calculate destination position
                 uint32_t dst_x = x + pos_x;
                 uint32_t dst_y = y + pos_y;
-                uint32_t dst_byte_idx = (dst_y * display_bytes_per_row) + (dst_x / 2);
+                uint32_t dst_byte_idx = (dst_y * EPD_WIDTH / 2) + (dst_x / 2);
                 bool dst_is_high_nibble = (dst_x % 2 == 0);
 
                 // Write the pixel to the framebuffer
@@ -212,7 +262,6 @@ public:
                           EPD_HEIGHT - max(0, static_cast<int32_t>(y)))};
 
         free(img_buffer);
-        http.end();
         return;
     }
 

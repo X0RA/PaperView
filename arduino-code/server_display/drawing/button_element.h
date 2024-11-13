@@ -1,9 +1,9 @@
 #ifndef BUTTON_ELEMENT_H
 #define BUTTON_ELEMENT_H
 
-#include "DrawElement.h"
+#include "../managers/display_manager.h"
 #include "../utils/api_functions.h"
-#include "draw_display.h"
+#include "draw_element.h"
 
 class ButtonElement : public DrawElement
 {

@@ -12,6 +12,7 @@ LAYOUTS_DIR = 'layouts'
 def ensure_layout_directory():
     Path(LAYOUTS_DIR).mkdir(exist_ok=True)
 
+# save layout to layouts dir
 @layout.route('/save-layout', methods=['POST'])
 def save_layout():
     try:

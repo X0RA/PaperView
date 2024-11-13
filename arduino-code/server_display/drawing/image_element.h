@@ -1,10 +1,11 @@
 #ifndef IMAGE_ELEMENT_H
 #define IMAGE_ELEMENT_H
 
-#include "DrawElement.h"
+#include "draw_element.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "../utils/api_functions.h"
+#include "../managers/display_manager.h"
 
 
 class ImageElement : public DrawElement
@@ -60,7 +61,7 @@ public:
         HTTPClient http;
         Serial.println("Fetching image data...");
 
-        String url = String(BASE_URL) + "/";
+        String url = String(BASE_URL) + "/image/";
         
         if (strncmp(path, "icon", 4) == 0) {
             url += String(path) + "/" + String(name) + 

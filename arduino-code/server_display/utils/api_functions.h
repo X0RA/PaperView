@@ -4,7 +4,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
 #include "wifi_config.h"
 
 // API Configuration
@@ -14,12 +13,14 @@
 typedef enum
 {
     PAGE_HOME,
+    PAGE_MUSIC,
     PAGE_COUNT
 } ApiPage_t;
 
 // Page URLs (must match order of ApiPage_t)
 static const char *PAGE_URLS[] = {
     "/home",
+    "/music",
 };
 
 typedef struct
@@ -31,10 +32,10 @@ typedef struct
 
 /**
  * @brief Make a GET request to a specific page
- * @param page The page to request
+ * @param page The page to request (defaults to PAGE_HOME)
  * @return ApiResponse_t containing success status and response
  */
-ApiResponse_t makeGetRequest(ApiPage_t page)
+ApiResponse_t getPage(ApiPage_t page = PAGE_HOME)
 {
     ApiResponse_t response = {false, "", -1};
 
@@ -46,7 +47,7 @@ ApiResponse_t makeGetRequest(ApiPage_t page)
     }
 
     HTTPClient http;
-    String url = String(BASE_URL) + String(PAGE_URLS[page]);
+    String url = String(BASE_URL) + String("/pages") + String(PAGE_URLS[page]);
 
     Serial.println("Making GET request to: " + url);
 
@@ -70,6 +71,47 @@ ApiResponse_t makeGetRequest(ApiPage_t page)
     http.end();
     return response;
 }
+
+/**
+ * @brief Make a GET request to a specific URL
+ * @param url The full URL to request
+ * @return ApiResponse_t containing success status and response
+ */
+ApiResponse_t makeGetRequest(const char *url)
+{
+    ApiResponse_t response = {false, "", -1};
+
+    // Check WiFi connection
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.println("WiFi not connected!");
+        return response;
+    }
+
+    HTTPClient http;
+    Serial.println("Making GET request to: " + String(url));
+
+    http.begin(url);
+    response.httpCode = http.GET();
+
+    if (response.httpCode > 0)
+    {
+        Serial.printf("HTTP GET Response code: %d\n", response.httpCode);
+        if (response.httpCode == HTTP_CODE_OK)
+        {
+            response.success = true;
+            response.response = http.getString();
+        }
+    }
+    else
+    {
+        Serial.printf("Error sending GET: %d\n", response.httpCode);
+    }
+
+    http.end();
+    return response;
+}
+
 
 /**
  * @brief Make a POST request to a specific endpoint

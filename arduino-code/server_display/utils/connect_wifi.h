@@ -1,3 +1,6 @@
+#ifndef CONNECT_WIFI_H
+#define CONNECT_WIFI_H
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include "wifi_config.h"
@@ -30,3 +33,5 @@ String connectToWiFi()
         return "Failed...";
     }
 }
+
+#endif // CONNECT_WIFI_H

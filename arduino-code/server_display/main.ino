@@ -1,16 +1,15 @@
+// Base
 #include <Arduino.h>
 #include "epd_driver.h"
 
 // Wi-Fi
 #include <WiFi.h>
-#include "utils/connectWifi.h"
 #include <ArduinoJson.h>
-
-// Web Server (for re-freshing display)
-#include "utils/web_server.h"
-
-// HTTP
+#include <esp_wifi.h>
 #include <HTTPClient.h>
+
+// SD
+#include "utils/sdcard.h"
 
 // touch
 #include <esp_task_wdt.h>
@@ -19,16 +18,18 @@
 #include "firasans.h"
 #include <Wire.h>
 #include <TouchDrvGT911.hpp>
-#include "utilities.h"
+// #include "utilities.h"
 
-// my helpers
-#include "drawing/draw_display.h"
+// utils
 #include "utils/api_functions.h"
-#include "drawing/ElementManager.h"
-
-// for the base url
 #include "utils/wifi_config.h"
+#include "utils/connect_wifi.h"
+#include "utils/web_server.h"
 
+// managers
+#include "managers/element_manager.h"
+#include "managers/display_manager.h"
+#include "managers/lifecycle_manager.h"
 
 ElementManager elementManager;
 TouchDrvGT911 touch;
@@ -38,11 +39,8 @@ uint8_t *framebuffer;
 bool refreshRequested = false;
 DisplayWebServer webServer(&refreshRequested);
 
-void setup()
+void setupFramebuffer()
 {
-    Serial.begin(115200);
-    epd_init();
-
     framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_WIDTH * EPD_HEIGHT / 2);
     if (!framebuffer)
     {
@@ -51,7 +49,10 @@ void setup()
             ;
     }
     memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
+}
 
+void setupTouch()
+{
     //* Sleep wakeup must wait one second, otherwise the touch device cannot be addressed
     if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED)
     {
@@ -60,9 +61,16 @@ void setup()
 
     Wire.begin(BOARD_SDA, BOARD_SCL);
 
-    // Assuming that the previous touch was in sleep state, wake it up
+    // Initialize touch pin properly
+    pinMode(TOUCH_INT, INPUT_PULLUP); // Start with INPUT_PULLUP
+    delay(100);                       // Give time for pin to stabilize
+
+    // Wake up touch controller with brief pulse
     pinMode(TOUCH_INT, OUTPUT);
     digitalWrite(TOUCH_INT, HIGH);
+    delay(100);
+    pinMode(TOUCH_INT, INPUT_PULLUP); // Return to INPUT_PULLUP
+    delay(100);                       // Allow time to stabilize
 
     /*
      * The touch reset pin uses hardware pull-up,
@@ -101,82 +109,151 @@ void setup()
     touch.setMirrorXY(false, true);
 
     Serial.println("Started Touchscreen poll...");
+}
 
-    // Connect to Wi-Fi
+void setupWiFi()
+{
     String wifiRes = connectToWiFi();
     Serial.println(wifiRes);
     webServer.begin();
 
-    // setup background
+    esp_err_t wifi_wakeup = esp_sleep_enable_wifi_wakeup();
+    if (wifi_wakeup != ESP_OK)
+    {
+        Serial.printf("Failed to enable wifi wakeup: %d\n", wifi_wakeup);
+    }
+
+    // Configure WiFi for power saving
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+}
+
+void setupDisplay()
+{
     epd_poweron();
-    // set_black_display_mode();
     epd_clear();
     set_background(framebuffer);
     epd_poweroff();
 }
+// // setup sleep
+// void setupSleep()
+// {
+//     // Configure wake-up sources
+//     esp_sleep_enable_timer_wakeup(60 * 1000000); // 60 seconds in microseconds
 
-bool update_display(uint8_t *framebuffer, bool doClear)
+//     // Use negative edge trigger (1->0) for touch wakeup
+//     esp_err_t touch_wakeup = esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
+//     if (touch_wakeup != ESP_OK)
+//     {
+//         Serial.printf("Failed to enable touch wakeup: %d\n", touch_wakeup);
+//     }
+
+//     // Add debug print before configuring WiFi
+//     Serial.printf("TOUCH_INT state: %d\n", digitalRead(TOUCH_INT));
+// }
+
+void setup()
 {
-    if (!framebuffer)
+    Serial.begin(115200);
+    while (!Serial)
     {
-        Serial.println("Framebuffer is null!");
-        return false;
+        delay(10);
     }
 
-    epd_poweron();
-
-    // Get data from API
-    ApiResponse_t getResponse = makeGetRequest(PAGE_HOME);
-    if (!getResponse.success)
-    {
-        Serial.println("Failed to get API response");
-        epd_poweroff();
-        return false;
-    }
-
-    // Parse JSON response
-    DynamicJsonDocument doc = parseJsonResponse(getResponse.response);
-    if (doc.isNull())
-    {
-        Serial.println("Failed to parse JSON data");
-        epd_poweroff();
-        return false;
-    }
-
-    // Check if we should clear the display
-    bool shouldClear = false;
-    if (doc.containsKey("clear"))
-    {
-        shouldClear = doc["clear"].as<bool>();
-        Serial.printf("Clear flag from server: %s\n", shouldClear ? "true" : "false");
-    }
-
-    if (shouldClear || doClear)
-    {
-        Serial.println("Clearing display");
-        epd_clear();
-        // Also clear framebuffer
-        memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
-    }
-
-    set_background(framebuffer);
-
-    // Get the elements array
-    JsonArray elements = doc["elements"];
-    if (elements.isNull())
-    {
-        Serial.println("No elements found in JSON");
-        epd_poweroff();
-        return false;
-    }
-
-    elementManager.processElements(elements, framebuffer);
-
-    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
-
-    epd_poweroff();
-    return true;
+    epd_init();
+    setupFramebuffer();
+    setupTouch();
+    setupWiFi();
+    setupDisplay();
+    setupSD();
+    // setupSleep();
 }
+
+// void loop()
+// {
+//     static unsigned long lastUpdate = 0;
+//     static unsigned long lastTouchUpdate = 0;
+//     static bool firstRun = true;
+//     static bool touchActive = false;
+//     static int16_t x, y;
+
+//     const unsigned long TOUCH_DEBOUNCE_TIME = 2000;
+//     const unsigned long FIRST_RUN_DELAY = 1000;
+
+//     unsigned long currentTime = millis();
+
+//     // Handle first run
+//     if (firstRun && (currentTime >= FIRST_RUN_DELAY))
+//     {
+//         if (update_display(framebuffer, elementManager, false))
+//         {
+//             firstRun = false;
+//             lastUpdate = currentTime;
+//         }
+//         return;
+//     }
+
+//     bool shouldUpdate = false;
+
+//     // Check wake-up reason
+//     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+//     switch (wakeup_reason)
+//     {
+//     case ESP_SLEEP_WAKEUP_TIMER:
+//         shouldUpdate = true;
+//         break;
+//     case ESP_SLEEP_WAKEUP_EXT0: // Changed from ESP_SLEEP_WAKEUP_TOUCHPAD
+//         if (touch.getPoint(&x, &y))
+//         {
+//             Serial.printf("Touch detected at X:%d Y:%d\n", x, y);
+//             shouldUpdate = elementManager.handleTouch(x, y, framebuffer);
+//         }
+//         break;
+//     default:
+//         break;
+//     }
+
+//     if (wakeup_reason != ESP_SLEEP_WAKEUP_UNDEFINED)
+//     {
+//         Serial.print("Woke up from sleep. Reason: ");
+//         switch (wakeup_reason)
+//         {
+//         case ESP_SLEEP_WAKEUP_TIMER:
+//             Serial.println("Timer");
+//             break;
+//         case ESP_SLEEP_WAKEUP_EXT0: // Changed from ESP_SLEEP_WAKEUP_TOUCHPAD
+//             Serial.println("Touchpad");
+//             break;
+//         default:
+//             Serial.println("Other");
+//             break;
+//         }
+//     }
+
+//     // Handle web server requests
+//     webServer.handle();
+
+//     // Update display if needed
+//     if (shouldUpdate || refreshRequested)
+//     {
+//         if (update_display(framebuffer, elementManager, false))
+//         {
+//             lastUpdate = currentTime;
+//         }
+//         refreshRequested = false;
+//     } else {
+//         // Only enter sleep if pin is in expected state
+//         int touchState = digitalRead(TOUCH_INT);
+//         Serial.printf("TOUCH_INT state before sleep: %d\n", touchState);
+
+//         if (touchState == HIGH) {  // Only sleep if pin is HIGH (no touch active)
+//             Serial.println("Entering light sleep mode...");
+//             esp_light_sleep_start();
+//         } else {
+//             Serial.println("Skipping sleep - touch pin is LOW");
+//             delay(100);  // Small delay before checking again
+//         }
+//     }
+// }
 
 void loop()
 {
@@ -195,7 +272,7 @@ void loop()
     // Handle first run
     if (firstRun && (currentTime >= FIRST_RUN_DELAY))
     {
-        if (update_display(framebuffer, false))
+        if (update_display(framebuffer, elementManager, false))
         {
             firstRun = false;
             lastUpdate = currentTime;
@@ -206,7 +283,7 @@ void loop()
     // Handle automatic update interval
     if (!firstRun && (currentTime - lastUpdate >= AUTO_UPDATE_INTERVAL))
     {
-        if (update_display(framebuffer, false))
+        if (update_display(framebuffer, elementManager, false))
         {
             lastUpdate = currentTime;
         }
@@ -221,7 +298,7 @@ void loop()
             bool refresh = elementManager.handleTouch(x, y, framebuffer);
             if (refresh)
             {
-                update_display(framebuffer, false);
+                update_display(framebuffer, elementManager, false);
             }
             lastTouchUpdate = currentTime;
         }
@@ -236,8 +313,10 @@ void loop()
     webServer.handle();
 
     // Check for refresh requests
-    if (refreshRequested) {
-        if (update_display(framebuffer, false)) {
+    if (refreshRequested)
+    {
+        if (update_display(framebuffer, elementManager, false))
+        {
             lastUpdate = currentTime;
         }
         refreshRequested = false;

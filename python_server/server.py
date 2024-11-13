@@ -3,16 +3,20 @@ import sys
 import os
 import logging
 from flask import Flask, send_from_directory
-from routes.pages import pages
 from routes.spotify import spotify
 from routes.layout import layout
 
+from routes.pages import pages
+from routes.images import images
 # Add react app build
 app = Flask(__name__, static_folder='./react-screen-creator/dist')
 
-app.register_blueprint(pages)
+# other routes
 app.register_blueprint(spotify, url_prefix='/spotify')
 app.register_blueprint(layout, url_prefix='/layout')
+# esp routes
+app.register_blueprint(pages, url_prefix='/pages')
+app.register_blueprint(images, url_prefix='/image')
 
 # Serve the static assets from /create/assets
 # @app.route('/create/assets/<path:path>')

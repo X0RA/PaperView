@@ -1,10 +1,10 @@
 #ifndef ELEMENT_MANAGER_H
 #define ELEMENT_MANAGER_H
 
-#include "DrawElement.h"
-#include "TextElement.h"
-#include "ButtonElement.h"
-#include "ImageElement.h"
+#include "../drawing/draw_element.h"
+#include "../drawing/text_element.h"
+#include "../drawing/button_element.h"
+#include "../drawing/image_element.h"
 #include <vector>
 
 class ElementManager

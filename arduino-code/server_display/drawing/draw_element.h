@@ -1,10 +1,10 @@
 #ifndef DRAW_ELEMENT_H
 #define DRAW_ELEMENT_H
 
+#include "../managers/display_manager.h"
 #include <Arduino.h>
 #include "epd_driver.h"
 #include "firasans.h"
-#include "draw_display.h"
 #include <ArduinoJson.h>
 
 enum class Anchor

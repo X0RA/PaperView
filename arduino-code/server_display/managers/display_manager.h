@@ -1,8 +1,9 @@
-#ifndef DRAW_DISPLAY_H
-#define DRAW_DISPLAY_H
+#ifndef DISPLAY_MANAGER_H
+#define DISPLAY_MANAGER_H
 
 #include <Arduino.h>
 #include "epd_driver.h"
+#include "../utils/api_functions.h"
 
 // Display properties structure
 typedef struct
@@ -150,4 +151,4 @@ void set_custom_display_mode(display_properties_t new_display)
     current_display = new_display;
 }
 
-#endif // DRAW_DISPLAY_H
+#endif // DISPLAY_MANAGER_H

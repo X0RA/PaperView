@@ -1,7 +1,8 @@
 #ifndef TEXT_ELEMENT_H
 #define TEXT_ELEMENT_H
 
-#include "DrawElement.h"
+#include "draw_element.h"
+#include "../managers/display_manager.h"
 
 class TextElement : public DrawElement
 {

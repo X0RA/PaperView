@@ -7,6 +7,12 @@
 #include "firasans.h"
 #include <ArduinoJson.h>
 
+enum class ElementType {
+    TEXT,
+    BUTTON,
+    IMAGE
+};
+
 enum class Anchor
 {
     TOP_RIGHT,
@@ -21,6 +27,7 @@ enum class Anchor
 class DrawElement
 {
 protected:
+    ElementType type;
     uint16_t id;
     char *text;
     int16_t x;
@@ -62,6 +69,7 @@ public:
         }
     }
 
+    ElementType getType() const { return type; }
     virtual void draw(uint8_t *framebuffer) = 0;
     virtual void clearArea(uint8_t *framebuffer)
     {

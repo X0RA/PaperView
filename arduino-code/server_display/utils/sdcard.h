@@ -15,6 +15,8 @@ void setupSD()
         cardMounted = false;
         return;
     }
+    Serial.println("Card mounted");
+    Serial.printf("Card size: %lluMB\n", SD.cardSize() / (1024 * 1024));
     cardMounted = true;
 }
 

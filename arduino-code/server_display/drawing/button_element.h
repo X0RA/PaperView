@@ -63,9 +63,16 @@ private:
     }
 
 public:
-    ButtonElement() : DrawElement(), callback(nullptr),
-                      padding_x(0), padding_y(0), radius(0),
-                      filled(false), touched(false) {}
+    ButtonElement() : DrawElement()
+    {
+        type = ElementType::BUTTON;
+        callback = nullptr;
+        padding_x = 0;
+        padding_y = 0;
+        radius = 0;
+        filled = false;
+        touched = false;
+    }
 
     ~ButtonElement()
     {

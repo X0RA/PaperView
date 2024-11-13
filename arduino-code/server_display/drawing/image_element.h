@@ -33,6 +33,7 @@ private:
 
 public:
     ImageElement() : DrawElement() {
+        type = ElementType::IMAGE;
         callback = nullptr;
         name = nullptr;
         path = nullptr;

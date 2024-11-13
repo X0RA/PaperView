@@ -8,7 +8,9 @@ class TextElement : public DrawElement
 {
 
 public:
-    TextElement() : DrawElement() {}
+    TextElement() : DrawElement() {
+        type = ElementType::TEXT;
+    }
 
     void draw(uint8_t *framebuffer) override
     {

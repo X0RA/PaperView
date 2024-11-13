@@ -216,29 +216,31 @@ public:
         {
             if (elements[i])
             {
-                // Try to cast to ButtonElement
-                ButtonElement *button = dynamic_cast<ButtonElement *>(elements[i]);
-                if (button && button->isPointInside(x, y))
+                if (elements[i]->getType() == ElementType::BUTTON)
                 {
-                    epd_poweron();
-                    Serial.printf("Button %d touched\n", button->getId());
+                    ButtonElement *button = static_cast<ButtonElement *>(elements[i]);
+                    if (button && button->isPointInside(x, y))
+                    {
+                        epd_poweron();
+                        Serial.printf("Button %d touched\n", button->getId());
 
-                    // Show touch state
-                    // TODO: Make this change color or some shit
-                    button->setTouched(true);
-                    button->draw(framebuffer);
-                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+                        // Show touch state
+                        // TODO: Make this change color or some shit
+                        button->setTouched(true);
+                        button->draw(framebuffer);
+                        epd_draw_grayscale_image(epd_full_screen(), framebuffer);
 
-                    // Execute callback and check if refresh needed
-                    bool refresh = button->executeCallback(framebuffer);
+                        // Execute callback and check if refresh needed
+                        bool refresh = button->executeCallback(framebuffer);
 
-                    // Reset touch state
-                    button->setTouched(false);
-                    button->draw(framebuffer);
-                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+                        // Reset touch state
+                        button->setTouched(false);
+                        button->draw(framebuffer);
+                        epd_draw_grayscale_image(epd_full_screen(), framebuffer);
 
-                    epd_poweroff();
-                    return refresh;
+                        epd_poweroff();
+                        return refresh;
+                    }
                 }
             }
         }

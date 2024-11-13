@@ -53,6 +53,7 @@ private:
         }
 
         Serial.println("URL: " + url);
+        http.setTimeout(10000); // Set timeout to 10 seconds
         http.begin(url);
         int httpCode = http.GET();
 

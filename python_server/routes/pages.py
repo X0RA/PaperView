@@ -30,12 +30,27 @@ def parse_layout_data(layout_data):
     sp = get_spotify_client()
     track_info = get_current_track_info(sp)
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    # if the layout_data elements "text" equals "track_info" or "time" replace it with the variables
+    
     for element in layout_data['elements']:
         if element['text'] == 'track_info':
-            element['text'] = f"Now playing: {track_info['track']} by {track_info['artist']}"
+            if track_info is None:
+                element['text'] = "No track currently playing"
+            else:
+                element['text'] = f"Now playing: {track_info['track']} by {track_info['artist']}"
         elif element['text'] == 'time':
             element['text'] = time
+        if element['path'] == 'album-art':
+            if track_info is None:
+                element['name'] = "None"
+            else:
+                name = f"{track_info['artist']}_{track_info['track']}"
+                # make sure the name is 16 characters or less and standard utf-8
+                name = name[:16]
+                # Replace non-ascii characters and special characters with underscores
+                name = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
+                # Ensure it's valid UTF-8
+                name = name.encode('ascii', 'ignore').decode('ascii')
+                element['name'] = name
     return layout_data
 
 @pages.route('/<layout_name>', methods=['GET'])

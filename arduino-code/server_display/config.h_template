@@ -4,7 +4,7 @@
 
 // Network Configuration
 #define WIFI_SSID "wifi_name"
-#define WIFI_PASSWORD "password"
+#define WIFI_PASSWORD "wifi_password"
 #define WIFI_CONNECT_TIMEOUT 10000
 #define WIFI_MAX_ATTEMPTS 20
 
@@ -17,33 +17,42 @@
 #define SD_MAX_FILES 50
 #define IMAGE_CACHE_SIZE 10
 
+// Touch Configuration
+#define TOUCH_DEBOUNCE_TIME 100 // ms
+
 #pragma region debug
 #define LOG_NONE 0
 #define LOG_ERROR 1
-#define LOG_INFO 2 
+#define LOG_INFO 2
 #define LOG_DEBUG 3
 
 // Set current debug level
-#define DEBUG_LEVEL LOG_INFO
+#define DEBUG_LEVEL LOG_DEBUG
 
 // Debug macros with different levels
 #if DEBUG_LEVEL >= LOG_ERROR
-    #define LOG_E(msg, ...) Serial.printf("[ERROR] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_E(msg, ...) Serial.printf("[ERROR] %s: " msg "\n", __func__, ##__VA_ARGS__)
 #else
-    #define LOG_E(msg, ...) 
+#define LOG_E(msg, ...)
 #endif
 
 #if DEBUG_LEVEL >= LOG_INFO
-    #define LOG_I(msg, ...) Serial.printf("[INFO] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_I(msg, ...) Serial.printf("[INFO] %s: " msg "\n", __func__, ##__VA_ARGS__)
 #else
-    #define LOG_I(msg, ...)
+#define LOG_I(msg, ...)
 #endif
 
 #if DEBUG_LEVEL >= LOG_DEBUG
-    #define LOG_D(msg, ...) Serial.printf("[DEBUG] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_D(msg, ...) Serial.printf("[DEBUG] %s: " msg "\n", __func__, ##__VA_ARGS__)
 #else
-    #define LOG_D(msg, ...)
+#define LOG_D(msg, ...)
+#endif
 #pragma endregion
 
+// Element configuration
+#define MAX_ELEMENTS 50
 
-#endif
+// Page Refresh Configuration
+#define AUTO_UPDATE_INTERVAL 30000 // ms
+
+#endif // GLOBAL_CONFIG_H

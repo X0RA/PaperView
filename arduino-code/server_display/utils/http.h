@@ -12,7 +12,7 @@ typedef struct {
 } ApiResponse_t;
 
 #pragma region HTTP Methods
-ApiResponse_t makeGetRequest(const char* url) {
+ApiResponse_t makeGetRequest(const char *url) {
     ApiResponse_t response = {false, "", -1};
 
     if (WiFi.status() != WL_CONNECTED) {
@@ -40,7 +40,7 @@ ApiResponse_t makeGetRequest(const char* url) {
     return response;
 }
 
-ApiResponse_t makePostRequest(const char* url, const char* payload = "") {
+ApiResponse_t makePostRequest(const char *url, const char *payload = "") {
     ApiResponse_t response = {false, "", -1};
 
     if (WiFi.status() != WL_CONNECTED) {
@@ -69,7 +69,7 @@ ApiResponse_t makePostRequest(const char* url, const char* payload = "") {
     return response;
 }
 
-void makeQuickPost(const char* url) {
+void makeQuickPost(const char *url) {
     if (WiFi.status() != WL_CONNECTED) {
         LOG_E("WiFi not connected!");
         return;

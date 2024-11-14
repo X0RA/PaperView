@@ -1,14 +1,14 @@
 #ifndef UTILS_EINK_H
 #define UTILS_EINK_H
 
-#include <Arduino.h>
+#include "../config.h"
 #include "epd_driver.h"
-
+#include <Arduino.h>
 // Display properties structure
 typedef struct
 {
-    uint8_t background_color;  // 0 = black, 15 = white
-    uint8_t foreground_color;  // 0 = black, 15 = white
+    uint8_t background_color; // 0 = black, 15 = white
+    uint8_t foreground_color; // 0 = black, 15 = white
     FontProperties primary;
     FontProperties secondary;
     FontProperties tertiary;
@@ -71,28 +71,24 @@ display_properties_t current_display = WHITE_DISPLAY;
 /**
  * @brief Clear a specific area of the display using current background color in framebuffer
  */
-void clear_area(Rect_t area, uint8_t *framebuffer)
-{
+void clear_area(Rect_t area, uint8_t *framebuffer) {
     if (!framebuffer)
         return;
+
+    LOG_D("Clearing area: %d, %d, %d, %d", area.x, area.y, area.width, area.height);
 
     // Convert background color to 4-bit value (0-15)
     uint8_t fill_value = current_display.background_color & 0x0F;
 
-    for (int y = area.y; y < area.y + area.height; y++)
-    {
-        for (int x = area.x; x < area.x + area.width; x++)
-        {
+    for (int y = area.y; y < area.y + area.height; y++) {
+        for (int x = area.x; x < area.x + area.width; x++) {
             if (x < 0 || x >= EPD_WIDTH || y < 0 || y >= EPD_HEIGHT)
                 continue;
 
             int idx = (y * EPD_WIDTH + x) / 2;
-            if (x % 2 == 0)
-            {
+            if (x % 2 == 0) {
                 framebuffer[idx] = (framebuffer[idx] & 0x0F) | (fill_value << 4);
-            }
-            else
-            {
+            } else {
                 framebuffer[idx] = (framebuffer[idx] & 0xF0) | fill_value;
             }
         }
@@ -102,11 +98,9 @@ void clear_area(Rect_t area, uint8_t *framebuffer)
 /**
  * @brief Set the entire display background using current background color
  */
-bool set_background(uint8_t *framebuffer)
-{
-    if (!framebuffer)
-    {
-        Serial.println("Error: Framebuffer is null");
+bool set_background(uint8_t *framebuffer) {
+    if (!framebuffer) {
+        LOG_E("Error: Framebuffer is null");
         return false;
     }
 
@@ -118,10 +112,8 @@ bool set_background(uint8_t *framebuffer)
 /**
  * @brief Get FontProperties for text level
  */
-FontProperties get_text_properties(uint8_t level)
-{
-    switch (level)
-    {
+FontProperties get_text_properties(uint8_t level) {
+    switch (level) {
     case 1:
         return current_display.primary;
     case 2:
@@ -135,18 +127,15 @@ FontProperties get_text_properties(uint8_t level)
     }
 }
 
-void set_black_display_mode()
-{
+void set_black_display_mode() {
     current_display = BLACK_DISPLAY;
 }
 
-void set_white_display_mode()
-{
+void set_white_display_mode() {
     current_display = WHITE_DISPLAY;
 }
 
-void set_custom_display_mode(display_properties_t new_display)
-{
+void set_custom_display_mode(display_properties_t new_display) {
     current_display = new_display;
 }
 
@@ -154,6 +143,7 @@ void set_custom_display_mode(display_properties_t new_display)
  * @brief Refresh the display by clearing and powering off (4 times)
  */
 void deep_refresh() {
+    LOG_D("Deep refreshing display");
     epd_poweron();
     epd_clear();
     epd_poweroff();

@@ -5,10 +5,12 @@
 #include "../config.h"
 
 // Elements
-#include "../elements/element.h"
 #include "../elements/button_element.h"
+#include "../elements/element.h"
 #include "../elements/image_element.h"
 #include "../elements/text_element.h"
+
+#include "../config.h"
 
 class ElementManager {
 private:
@@ -17,7 +19,7 @@ private:
     uint8_t *framebuffer;
 
 public:
-    ElementManager(uint8_t *fb){
+    ElementManager(uint8_t *fb) {
         elementCount = 0;
         framebuffer = fb;
         memset(elements, 0, sizeof(elements));
@@ -28,6 +30,8 @@ public:
     }
 
     void processElements(JsonArray &jsonElements) {
+        LOG_I("Processing %d elements", jsonElements.size());
+
         // Mark all existing elements as not updated
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
             if (elements[i]) {
@@ -40,6 +44,8 @@ public:
             const char *type = element["type"] | "";
             DrawElement *newElement = nullptr;
 
+            LOG_D("Processing element of type: %s", type);
+
             if (strcmp(type, "text") == 0) {
                 newElement = new TextElement();
             } else if (strcmp(type, "button") == 0) {
@@ -51,6 +57,7 @@ public:
             if (newElement && newElement->updateFromJson(element)) {
                 updateElement(newElement);
             } else {
+                LOG_E("Failed to create or update element of type: %s", type);
                 delete newElement;
             }
         }
@@ -59,6 +66,7 @@ public:
         removeUnusedElements();
 
         // Redraw all active elements
+        LOG_D("Redrawing all active elements");
         redrawElements();
     }
 
@@ -85,7 +93,7 @@ private:
             }
         }
 
-        Serial.println("Warning: No free slots for element storage!");
+        LOG_E("No free slots for element storage!");
         delete element;
         return false;
     }
@@ -131,7 +139,7 @@ private:
 
         if (existing) {
             if (!existing->isEqual(*newElement)) {
-                Serial.printf("Updating element %d\n", existing->getId());
+                LOG_D("Updating element %d", existing->getId());
                 // Find index of existing element
                 for (size_t i = 0; i < MAX_ELEMENTS; i++) {
                     if (elements[i]->getId() == existing->getId()) {

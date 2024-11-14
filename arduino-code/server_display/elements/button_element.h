@@ -5,19 +5,21 @@
 #include "../utils/layout.h"
 #include "element.h"
 
-class ButtonElement : public DrawElement
-{
+class ButtonElement : public DrawElement {
 private:
-    char *callback;
     int16_t padding_x;
     int16_t padding_y;
     uint16_t radius;
     bool filled;
-    bool touched;
 
+// TODO: Maybe add a square one? Test with radius 0.
+// TODO: Remove small circles from the corners of unfilled rounded rects.
+#pragma region Drawing Methods (round rect, filled round rect)
+    /**
+     * @brief Draw a rounded rectangle
+     */
     void draw_rounded_rect(int16_t x, int16_t y, int16_t w, int16_t h,
-                           uint16_t r, uint8_t color, uint8_t *framebuffer)
-    {
+                           uint16_t r, uint8_t color, uint8_t *framebuffer) {
         // Ensure radius doesn't exceed half of width/height
         if (r > w / 2)
             r = w / 2;
@@ -39,9 +41,11 @@ private:
         epd_draw_circle(x + w - r - 1, y + h - r - 1, r, color, framebuffer); // Bottom-right
     }
 
+    /**
+     * @brief Draw a filled rounded rectangle
+     */
     void draw_filled_rounded_rect(int16_t x, int16_t y, int16_t w, int16_t h,
-                                  uint16_t r, uint8_t color, uint8_t *framebuffer)
-    {
+                                  uint16_t r, uint8_t color, uint8_t *framebuffer) {
         // Ensure radius doesn't exceed half of width/height
         if (r > w / 2)
             r = w / 2;
@@ -61,29 +65,30 @@ private:
         epd_fill_circle(x + r, y + h - r - 1, r, color, framebuffer);         // Bottom-left
         epd_fill_circle(x + w - r - 1, y + h - r - 1, r, color, framebuffer); // Bottom-right
     }
+#pragma endregion
+
+    bool shouldInvert() {
+        // TODO: Implement, check the current background color and do the opposite
+        return false;
+    }
 
 public:
-    ButtonElement() : DrawElement()
-    {
+    // constructor
+    ButtonElement() : DrawElement() {
         type = ElementType::BUTTON;
-        callback = nullptr;
         padding_x = 0;
         padding_y = 0;
         radius = 0;
         filled = false;
-        touched = false;
     }
 
-    ~ButtonElement()
-    {
-        if (callback)
-        {
-            free(callback);
-        }
+    // destructor
+    ~ButtonElement() {
+        // cleanup here
     }
 
-    void draw(uint8_t *framebuffer) override
-    {
+#pragma region Drawing Methods
+    void draw(uint8_t *framebuffer) override {
         if (!text)
             return;
 
@@ -104,8 +109,7 @@ public:
         int32_t button_x = x;
         int32_t button_y = y;
 
-        switch (anchor)
-        {
+        switch (anchor) {
         case Anchor::TOP_RIGHT:
             button_x = x; // Right edge aligns with x
             button_y = y; // Top edge aligns with y
@@ -145,23 +149,17 @@ public:
 
         // Determine background color based on touch state
         uint8_t background_color;
-        if (touched)
-        {
+        if (touched) {
             background_color = props.bg_color == 0 ? 15 : 255;
-        }
-        else
-        {
+        } else {
             background_color = props.bg_color == 15 ? 0 : 255;
         }
 
         // Draw the button
-        if (filled)
-        {
+        if (filled) {
             draw_filled_rounded_rect(button_x, button_y, buttonWidth, buttonHeight,
                                      radius, background_color, framebuffer);
-        }
-        else
-        {
+        } else {
             draw_rounded_rect(button_x, button_y, buttonWidth, buttonHeight,
                               radius, background_color, framebuffer);
         }
@@ -172,8 +170,7 @@ public:
 
         // Set up text properties
         FontProperties textProps = props;
-        if (filled)
-        {
+        if (filled) {
             textProps.bg_color = props.fg_color;
             textProps.fg_color = props.bg_color;
         }
@@ -188,8 +185,7 @@ public:
         active = true;
     }
 
-    bool updateFromJson(JsonObject &element) override
-    {
+    bool updateFromJson(JsonObject &element) override {
         if (strcmp(element["type"] | "", "button") != 0)
             return false;
 
@@ -204,7 +200,7 @@ public:
         x = element["x"].as<int16_t>();
         y = element["y"].as<int16_t>();
         anchor = getAnchorFromString(element["anchor"] | "bl");
-        props = get_text_properties(element["level"].as<uint8_t>());
+        font_props = get_text_properties(element["level"].as<uint8_t>());
         padding_x = static_cast<int16_t>(constrain(element["padding_x"] | 10, 0, 100));
         padding_y = static_cast<int16_t>(constrain(element["padding_y"] | 5, 0, 50));
         radius = static_cast<uint16_t>(constrain(element["radius"] | 0, 0, 35));
@@ -216,43 +212,29 @@ public:
         return true;
     }
 
-    bool executeCallback(uint8_t *framebuffer)
-    {
-        if (callback && strlen(callback) > 0)
-        {
-            if (strcmp(callback, "toggle-dark") == 0)
-            {
-                if (current_display.background_color == 15)
-                {
-                    set_black_display_mode();
-                }
-                else
-                {
-                    set_white_display_mode();
-                }
-                epd_clear();
-                set_background(framebuffer);
-                return true;
-            }
-            if (strcmp(callback, "refresh") == 0)
-            {
-                return true;
-            }
-            makeQuickPost(callback);
-        }
-        return false;
+    void drawTouched(uint8_t *framebuffer) override {
+        // TODO: Implement, invert colors of background and text
+    }
+#pragma endregion
+
+#pragma region isEqual
+    bool isEqual(const ButtonElement &other) const {
+        return DrawElement::isEqual(static_cast<const DrawElement &>(other)) &&
+               id == other.id &&
+               strcmp(text, other.text) == 0 &&
+               strcmp(callback, other.callback) == 0 &&
+               x == other.x &&
+               y == other.y &&
+               anchor == other.anchor;
     }
 
-    void setTouched(bool touch)
-    {
-        touched = touch;
+    // Add this to maintain the override of the base class method
+    bool isEqual(const DrawElement &other) const override {
+        if (other.getType() != ElementType::BUTTON)
+            return false;
+        return isEqual(static_cast<const ButtonElement &>(other));
     }
-
-    bool isPointInside(int16_t px, int16_t py) const
-    {
-        return (px >= bounds.x && px < (bounds.x + bounds.width) &&
-                py >= bounds.y && py < (bounds.y + bounds.height));
-    }
+#pragma endregion
 };
 
 #endif // BUTTON_ELEMENT_H

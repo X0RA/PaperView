@@ -1,27 +1,36 @@
 #ifndef IMAGE_ELEMENT_H
 #define IMAGE_ELEMENT_H
 
-#include "element.h"
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include "../utils/layout.h"
 #include "../utils/eink.h"
+#include "../utils/layout.h"
 #include "../utils/storage.h"
+#include "element.h"
+#include <HTTPClient.h>
+#include <WiFi.h>
 
-class ImageElement : public DrawElement
-{
+enum class ImageType {
+    ICON,
+    SPOTIFY_ALBUM_ART,
+    URL
+};
+
+// TODO: Maybe seperate out the image and the icon types?
+
+class ImageElement : public DrawElement {
 private:
-    char *callback;
-    char *name;
-    char *path;
-    bool touched;
-    bool inverted;
-    bool filled;
-    int16_t width;
-    int16_t height;
+    // char *text;          // Unused now
+    // bool inverted;       // Whether the image is inverted
+    char *name;  // The name of the image
+    char *path;  // The path of the image, either "icon" or "album-art" or "url"
+    bool filled; // Whether the image is filled
+    // TODO: Make sure new image wxh tags are updated in this document
+    int16_t img_w;      // The width of the image
+    int16_t img_h;      // The height of the image
+    ImageType img_type; // The type of the image
+
     // The following are inherited from DrawElement and are here for reference.
     // uint16_t id;
-    // char *text; // Unused now
+    // char *text;
     // int16_t x;
     // int16_t y;
     // Anchor anchor;
@@ -31,33 +40,36 @@ private:
     // bool changed;
     // bool updated;
 
-    bool fetchImageFromServer(uint8_t* img_buffer, uint32_t& img_width, uint32_t& img_height) {
+#pragma region(fetch from server / SD)Private Methods
+    /**
+     * @brief Fetch an image from the server
+     */
+    // TODO: move elsewhere?
+    bool fetchImageFromServer(uint8_t *img_buffer, uint32_t &img_width, uint32_t &img_height) {
         HTTPClient http;
         String url = String(BASE_URL) + "/image/";
-        
+
         if (strncmp(path, "icon", 4) == 0) {
-            url += String(path) + "/" + String(name) + 
-                   "?width=" + String(width) + 
+            url += String(path) + "/" + String(name) +
+                   "?width=" + String(width) +
                    "&height=" + String(height) +
                    "&filled=" + String(filled);
-        }
-        else if (strncmp(path, "album-art", 9) == 0) {
+        } else if (strncmp(path, "album-art", 9) == 0) {
             url += String(path) + "/" +
                    "?width=" + String(width) +
-                   "&height=" + String(height); 
-        }
-        else {
+                   "&height=" + String(height);
+        } else {
             Serial.println("Invalid path type");
             return false;
         }
 
-        Serial.println("URL: " + url);
+        LOG_D("URL: %s", url.c_str());
         http.setTimeout(10000); // Set timeout to 10 seconds
         http.begin(url);
         int httpCode = http.GET();
 
         if (httpCode != HTTP_CODE_OK) {
-            Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+            LOG_E("HTTP GET failed, error: %s", http.errorToString(httpCode).c_str());
             http.end();
             return false;
         }
@@ -65,7 +77,7 @@ private:
         // Get dimensions from header
         if (http.getStream().readBytes((char *)&img_width, 4) != 4 ||
             http.getStream().readBytes((char *)&img_height, 4) != 4) {
-            Serial.println("Failed to read image dimensions");
+            LOG_E("Failed to read image dimensions");
             http.end();
             return false;
         }
@@ -73,37 +85,41 @@ private:
         // Calculate size and read image data
         size_t bytes_per_row = img_width / 2;
         size_t image_data_size = bytes_per_row * img_height;
-        
+
         if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size) {
-            Serial.println("Failed to read complete image data");
+            LOG_E("Failed to read complete image data");
             http.end();
             return false;
         }
 
         http.end();
-        Serial.println("Fetched image from server");
+        LOG_D("Fetched image from server");
         return true;
     }
 
-    bool readImageFromSD(uint8_t* img_buffer, uint32_t& img_width, uint32_t& img_height) {
-        String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);        
-        Serial.println("Checking if image exists on SD card: " + filename);
+    /**
+     * @brief Read an image from the SD card
+     */
+    // TODO: move elsewhere?
+    bool readImageFromSD(uint8_t *img_buffer, uint32_t &img_width, uint32_t &img_height) {
+        String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);
+        LOG_D("Checking if image exists on SD card: %s", filename.c_str());
         if (!SD.exists(filename)) {
-            Serial.println("Image not found on SD card");
+            LOG_D("Image not found on SD card: %s", filename.c_str());
             return false;
         }
 
         File file = SD.open(filename, FILE_READ);
         if (!file) {
-            Serial.println("Failed to open image file");
+            LOG_E("Failed to open image file");
             return false;
         }
 
         // Read dimensions
-        if (file.read((uint8_t*)&img_width, 4) != 4 ||
-            file.read((uint8_t*)&img_height, 4) != 4) {
+        if (file.read((uint8_t *)&img_width, 4) != 4 ||
+            file.read((uint8_t *)&img_height, 4) != 4) {
             file.close();
-            Serial.println("Failed to read image dimensions");
+            LOG_E("Failed to read image dimensions");
             return false;
         }
 
@@ -112,27 +128,47 @@ private:
         size_t image_data_size = bytes_per_row * img_height;
         if (file.read(img_buffer, image_data_size) != image_data_size) {
             file.close();
-            Serial.println("Failed to read image data");
+            LOG_E("Failed to read image data");
             return false;
         }
 
         file.close();
-        Serial.println("Read image from SD card");
+        LOG_D("Read image from SD card");
         return true;
     }
 
+    /**
+     * @brief Get the type of the image from the path
+     */
+    ImageType getImageTypeFromString(const char *path) {
+        if (strncmp(path, "icon", 4) == 0)
+            return ImageType::ICON;
+        if (strncmp(path, "spotify-album-art", 9) == 0)
+            return ImageType::SPOTIFY_ALBUM_ART;
+        return ImageType::URL;
+    }
+
+    /**
+     * @brief Check if the image should be inverted
+     */
+    bool shouldInvert() {
+        // TODO: Implement, check the current background color and do the opposite
+        // or use font properties if it's updated
+        return false;
+    }
+
+#pragma endregion
+
 public:
+    // Constructor for ImageElement
     ImageElement() : DrawElement() {
         type = ElementType::IMAGE;
-        callback = nullptr;
         name = nullptr;
         path = nullptr;
     }
 
+    // destructor
     ~ImageElement() {
-        if (callback) {
-            free(callback);
-        }
         if (name) {
             free(name);
         }
@@ -141,21 +177,23 @@ public:
         }
     }
 
-    void draw(uint8_t *framebuffer) override
-    {
-        if (WiFi.status() != WL_CONNECTED)
-        {
-            Serial.println("WiFi not connected!");
+#pragma region Drawing Methods
+    /**
+     * @brief Draw the image to the framebuffer
+     */
+    void draw(uint8_t *framebuffer) override {
+        if (WiFi.status() != WL_CONNECTED) {
+            LOG_E("WiFi not connected!");
             return;
         }
 
         uint32_t img_width, img_height;
         size_t bytes_per_row = width / 2;
         size_t image_data_size = bytes_per_row * height;
-        
+
         uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
         if (!img_buffer) {
-            Serial.println("Failed to allocate image buffer");
+            LOG_E("Failed to allocate image buffer");
             return;
         }
 
@@ -163,7 +201,7 @@ public:
         if (isCardMounted()) {
             success = readImageFromSD(img_buffer, img_width, img_height);
         }
-        
+
         if (!success) {
             success = fetchImageFromServer(img_buffer, img_width, img_height);
             if (success) {
@@ -180,7 +218,7 @@ public:
         // Validate image will fit on display
         if (x + img_width > EPD_WIDTH || y + img_height > EPD_HEIGHT ||
             x < 0 || y < 0) {
-            Serial.println("Image position out of bounds");
+            LOG_E("Image position out of bounds");
             free(img_buffer);
             return;
         }
@@ -190,28 +228,22 @@ public:
         uint8_t x_pixel_offset = x % 2;
 
         // Copy image data into framebuffer at correct position
-        for (uint32_t pos_y = 0; pos_y < img_height; pos_y++)
-        {
-            for (uint32_t pos_x = 0; pos_x < img_width; pos_x++)
-            {
+        for (uint32_t pos_y = 0; pos_y < img_height; pos_y++) {
+            for (uint32_t pos_x = 0; pos_x < img_width; pos_x++) {
                 // Calculate source byte and nibble
                 uint32_t src_byte_idx = (pos_y * bytes_per_row) + (pos_x / 2);
                 bool is_high_nibble = (pos_x % 2 == 0);
                 uint8_t pixel;
 
                 // Extract the pixel value (4 bits)
-                if (is_high_nibble)
-                {
+                if (is_high_nibble) {
                     pixel = (img_buffer[src_byte_idx] >> 4) & 0x0F;
-                }
-                else
-                {
+                } else {
                     pixel = img_buffer[src_byte_idx] & 0x0F;
                 }
 
                 // Handle inversion and transparency
-                if (inverted)
-                {
+                if (inverted) {
                     if (pixel == 0x0F)
                         pixel = 0x00;
                     else if (pixel == 0x00)
@@ -220,9 +252,7 @@ public:
                     // Skip black pixels for transparency
                     if (pixel == 0x00)
                         continue;
-                }
-                else
-                {
+                } else {
                     // skip white pixels for transparency
                     if (pixel == 0x0F)
                         continue;
@@ -235,12 +265,9 @@ public:
                 bool dst_is_high_nibble = (dst_x % 2 == 0);
 
                 // Write the pixel to the framebuffer
-                if (dst_is_high_nibble)
-                {
+                if (dst_is_high_nibble) {
                     framebuffer[dst_byte_idx] = (framebuffer[dst_byte_idx] & 0x0F) | (pixel << 4);
-                }
-                else
-                {
+                } else {
                     framebuffer[dst_byte_idx] = (framebuffer[dst_byte_idx] & 0xF0) | pixel;
                 }
             }
@@ -265,19 +292,18 @@ public:
         return;
     }
 
-    void clearArea(uint8_t *framebuffer) override
-    {
+    /**
+     * @brief Clear the area of the image
+     */
+    void clearArea(uint8_t *framebuffer) override {
         int16_t cycles = 1;
         int16_t time = 50;
 
-        for (int32_t c = 0; c < cycles; c++)
-        {
-            for (int32_t i = 0; i < 4; i++)
-            {
+        for (int32_t c = 0; c < cycles; c++) {
+            for (int32_t i = 0; i < 4; i++) {
                 epd_push_pixels(bounds, time, 0);
             }
-            for (int32_t i = 0; i < 4; i++)
-            {
+            for (int32_t i = 0; i < 4; i++) {
                 epd_push_pixels(bounds, time, 1);
             }
         }
@@ -285,8 +311,34 @@ public:
         clear_area(bounds, framebuffer);
     }
 
-    bool updateFromJson(JsonObject &element) override
-    {
+    void drawTouched(uint8_t *framebuffer) override {
+        // TODO: Implement touch effect for image / icon
+        // Maybe get image from SD if exists and turn the non background color pixels to grey
+    }
+
+#pragma endregion
+
+    /**
+     * @brief Update the image element from a JSON object
+     *
+     * Example JSON structure:
+     * {
+     *   "type": "image",
+     *   "id": 1,
+     *   "text": "",
+     *   "x": 100,
+     *   "y": 100,
+     *   "anchor": "bl",
+     *   "callback": "",
+     *   "name": "bell",
+     *   "path": "icon",
+     *   "inverted": false,
+     *   "filled": true,
+     *   "width": 64,
+     *   "height": 64
+     * }
+     */
+    bool updateFromJson(JsonObject &element) override {
         if (strcmp(element["type"] | "", "image") != 0)
             return false;
 
@@ -300,7 +352,7 @@ public:
         x = element["x"].as<int16_t>();
         y = element["y"].as<int16_t>();
         anchor = getAnchorFromString(element["anchor"] | "bl");
-        props = FontProperties(); // Default, unused
+        font_props = FontProperties(); // Default, unused
         active = true;
         changed = true;
         updated = true;
@@ -308,11 +360,32 @@ public:
         name = strdup(nameContent);
         path = strdup(pathContent);
         touched = false;
-        inverted = element["inverted"] | false;
         filled = element["filled"] | true;
         width = element["width"].as<int16_t>();
         height = element["height"].as<int16_t>();
+        img_type = getImageTypeFromString(pathContent);
         return true;
     }
+
+#pragma region isEqual
+    bool isEqual(const ImageElement &other) const {
+        return DrawElement::isEqual(static_cast<const DrawElement &>(other)) &&
+               strcmp(name, other.name) == 0 &&
+               strcmp(path, other.path) == 0 &&
+               width == other.width &&
+               height == other.height &&
+               anchor == other.anchor &&
+               x == other.x &&
+               y == other.y &&
+               filled == other.filled;
+    }
+
+    // Add this to maintain the override of the base class method
+    bool isEqual(const DrawElement &other) const override {
+        if (other.getType() != ElementType::IMAGE)
+            return false;
+        return isEqual(static_cast<const ImageElement &>(other));
+    }
+#pragma endregion
 };
 #endif // IMAGE_ELEMENT_H

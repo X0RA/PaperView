@@ -21,9 +21,9 @@
 class ApplicationController {
 private:
 #pragma region Properties
-    uint8_t *framebuffer;
+    uint8_t *const framebuffer;
     ElementManager elements;
-    TouchDrvGT911& touch;
+    TouchDrvGT911 &touch;
     DisplayWebServer webServer;
 
     bool touch_active;
@@ -88,24 +88,26 @@ private:
 #pragma endregion
 
 public:
-#pragma region Lifecycle Methods
-    ApplicationController(uint8_t *framebuffer, TouchDrvGT911& touch) : touch_active(false),
+#pragma region Instantiation Methods
+    ApplicationController(uint8_t *framebuffer, TouchDrvGT911 &touch) : framebuffer(framebuffer),
+                                                                        touch_active(false),
                                                                         last_touch_time(0),
                                                                         last_update_time(0),
-                                                                        framebuffer(framebuffer),
-                                                                        touch(touch) {};
+                                                                        touch(touch),
+                                                                        elements(framebuffer),
+                                                                        webServer(&refresh_display) {};
 
     ~ApplicationController() {
-        if (framebuffer) {
-            free(framebuffer);
-        }
+        // No cleanup needed
     }
+
 #pragma endregion
 
 #pragma region Public Methods
     void loop() {
         handleTouch();
         checkAutoUpdate();
+        webServer.handle();
 
         if (refresh_display) {
             updateDisplay();

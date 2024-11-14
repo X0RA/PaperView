@@ -33,21 +33,20 @@
 TouchDrvGT911 touch;
 
 // screen buffer
-uint8_t *framebuffer;
+std::unique_ptr<uint8_t[]> framebuffer;
 
 // application controller
 ApplicationController* app;
 
 #pragma region Setup Functions
 void setupFramebuffer() {
-    framebuffer =
-        (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_WIDTH * EPD_HEIGHT / 2);
+    framebuffer = std::unique_ptr<uint8_t[]>(new uint8_t[EPD_WIDTH * EPD_HEIGHT / 2]);
     if (!framebuffer) {
         LOG_E("Failed to allocate framebuffer memory");
         return;
     }
     LOG_D("Allocated framebuffer of size %d bytes", EPD_WIDTH * EPD_HEIGHT / 2);
-    memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
+    memset(framebuffer.get(), 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
     LOG_I("Framebuffer initialized successfully");
 }
 
@@ -136,7 +135,7 @@ void setup() {
     setupSD();
     deep_refresh();
     delay(500);
-    app = new ApplicationController(framebuffer, touch);
+    app = new ApplicationController(framebuffer.get(), touch);
 }
 
 void loop() {

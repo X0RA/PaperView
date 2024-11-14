@@ -1,4 +1,4 @@
-BasedOnStyle: LLVM
+BasedOnStyle: LLVM # Possible values: LLVM, Google, Chromium, Mozilla, WebKit
 UseTab: Never
 IndentWidth: 4
 TabWidth: 4
@@ -8,3 +8,4 @@ AccessModifierOffset: -4
 NamespaceIndentation: All
 FixNamespaceComments: false
 AllowShortLoopsOnASingleLine: true
+SortIncludes: false  # Disables include sorting completely

@@ -13,7 +13,7 @@ typedef enum {
     PAGE_COUNT
 } ApiPage_t;
 
-static const char* PAGE_URLS[] = {
+static const char *PAGE_URLS[] = {
     "/home",
     "/music",
 };
@@ -28,6 +28,7 @@ static const char* PAGE_URLS[] = {
  */
 ApiResponse_t getPage(ApiPage_t page = PAGE_HOME) {
     String url = String(BASE_URL) + String("/pages") + String(PAGE_URLS[page]);
+    LOG_D("GET request to: %s", url.c_str());
     return makeGetRequest(url.c_str());
 }
 
@@ -36,7 +37,8 @@ ApiResponse_t getPage(ApiPage_t page = PAGE_HOME) {
  * @param jsonResponse The JSON string to parse
  * @return DynamicJsonDocument containing parsed JSON
  */
-DynamicJsonDocument parseJsonResponse(const String& jsonResponse) {
+DynamicJsonDocument parseJsonResponse(const String &jsonResponse) {
+    LOG_D("Parsing JSON response");
     DynamicJsonDocument doc(MAX_JSON_SIZE);
     DeserializationError error = deserializeJson(doc, jsonResponse);
 
@@ -45,6 +47,7 @@ DynamicJsonDocument parseJsonResponse(const String& jsonResponse) {
         return DynamicJsonDocument(0);
     }
 
+    LOG_D("JSON parsed successfully");
     return doc;
 }
 #pragma endregion

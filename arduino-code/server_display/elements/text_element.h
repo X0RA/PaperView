@@ -3,16 +3,14 @@
 
 #include "element.h"
 
-class TextElement : public DrawElement
-{
+class TextElement : public DrawElement {
 
 public:
     TextElement() : DrawElement() {
         type = ElementType::TEXT;
     }
 
-    void draw(uint8_t *framebuffer) override
-    {
+    void draw(uint8_t *framebuffer) override {
         if (!text)
             return;
 
@@ -27,8 +25,7 @@ public:
         int32_t cursor_x = x;
         int32_t cursor_y = y;
 
-        switch (anchor)
-        {
+        switch (anchor) {
         case Anchor::TOP_LEFT:
             cursor_y = y + h;
             break;
@@ -76,8 +73,7 @@ public:
         active = true;
     }
 
-    bool updateFromJson(JsonObject &element) override
-    {
+    bool updateFromJson(JsonObject &element) override {
         if (strcmp(element["type"] | "", "text") != 0)
             return false;
 

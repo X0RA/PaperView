@@ -1,11 +1,12 @@
 #ifndef DRAW_ELEMENT_H
 #define DRAW_ELEMENT_H
 
-#include "../managers/display_manager.h"
 #include <Arduino.h>
 #include "epd_driver.h"
 #include "firasans.h"
 #include <ArduinoJson.h>
+#include "../utils/eink.h"
+
 
 enum class ElementType {
     TEXT,

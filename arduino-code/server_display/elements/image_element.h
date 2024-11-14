@@ -1,13 +1,12 @@
 #ifndef IMAGE_ELEMENT_H
 #define IMAGE_ELEMENT_H
 
-#include "draw_element.h"
+#include "element.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "../utils/api_functions.h"
-#include "../managers/display_manager.h"
-#include "../utils/sdcard.h"
-
+#include "../utils/layout.h"
+#include "../utils/eink.h"
+#include "../utils/storage.h"
 
 class ImageElement : public DrawElement
 {

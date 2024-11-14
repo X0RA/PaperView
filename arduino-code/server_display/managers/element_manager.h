@@ -1,101 +1,84 @@
 #ifndef ELEMENT_MANAGER_H
 #define ELEMENT_MANAGER_H
 
-#include "../drawing/draw_element.h"
-#include "../drawing/text_element.h"
-#include "../drawing/button_element.h"
-#include "../drawing/image_element.h"
 #include <vector>
+#include "../config.h"
 
-class ElementManager
-{
+// Elements
+#include "../elements/element.h"
+#include "../elements/button_element.h"
+#include "../elements/image_element.h"
+#include "../elements/text_element.h"
+
+class ElementManager {
 private:
-    static const size_t MAX_ELEMENTS = 50;
     DrawElement *elements[MAX_ELEMENTS];
     size_t elementCount;
+    uint8_t *framebuffer;
 
 public:
-    ElementManager() : elementCount(0)
-    {
+    ElementManager(uint8_t *fb){
+        elementCount = 0;
+        framebuffer = fb;
         memset(elements, 0, sizeof(elements));
     }
 
-    ~ElementManager()
-    {
+    ~ElementManager() {
         clearElements();
     }
 
-    void processElements(JsonArray &jsonElements, uint8_t *framebuffer)
-    {
+    void processElements(JsonArray &jsonElements) {
         // Mark all existing elements as not updated
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (elements[i])
-            {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i]) {
                 elements[i]->setUpdated(false);
             }
         }
 
         // Process new elements
-        for (JsonObject element : jsonElements)
-        {
+        for (JsonObject element : jsonElements) {
             const char *type = element["type"] | "";
             DrawElement *newElement = nullptr;
 
-            if (strcmp(type, "text") == 0)
-            {
+            if (strcmp(type, "text") == 0) {
                 newElement = new TextElement();
-            }
-            else if (strcmp(type, "button") == 0)
-            {
+            } else if (strcmp(type, "button") == 0) {
                 newElement = new ButtonElement();
-            }
-            else if (strcmp(type, "image") == 0)
-            {
+            } else if (strcmp(type, "image") == 0) {
                 newElement = new ImageElement();
             }
 
-            if (newElement && newElement->updateFromJson(element))
-            {
-                updateElement(newElement, framebuffer);
-            }
-            else
-            {
+            if (newElement && newElement->updateFromJson(element)) {
+                updateElement(newElement);
+            } else {
                 delete newElement;
             }
         }
 
         // Remove elements that weren't updated
-        removeUnusedElements(framebuffer);
+        removeUnusedElements();
 
         // Redraw all active elements
-        redrawElements(framebuffer);
+        redrawElements();
     }
 
 private:
-    DrawElement *findElementById(uint16_t id)
-    {
-        if (elementCount == 0)
-        {
+    DrawElement *findElementById(uint16_t id) {
+        if (elementCount == 0) {
             return nullptr;
         }
 
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (elements[i] && elements[i]->getId() == id)
-            {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i] && elements[i]->getId() == id) {
                 return elements[i];
             }
         }
         return nullptr;
     }
 
-    bool storeElement(DrawElement *element)
-    {
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (!elements[i])
-            {
+    bool storeElement(DrawElement *element) {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (!elements[i]) {
                 elements[i] = element;
                 elementCount++;
                 return true;
@@ -107,10 +90,8 @@ private:
         return false;
     }
 
-    void removeElement(size_t index, uint8_t *framebuffer)
-    {
-        if (elements[index])
-        {
+    void removeElement(size_t index) {
+        if (elements[index]) {
             elements[index]->clearArea(framebuffer);
             delete elements[index];
             elements[index] = nullptr;
@@ -118,34 +99,25 @@ private:
         }
     }
 
-    void removeUnusedElements(uint8_t *framebuffer)
-    {
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (elements[i] && !elements[i]->isUpdated())
-            {
-                removeElement(i, framebuffer);
+    void removeUnusedElements() {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i] && !elements[i]->isUpdated()) {
+                removeElement(i);
             }
         }
     }
 
-    void redrawElements(uint8_t *framebuffer)
-    {
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (elements[i])
-            {
+    void redrawElements() {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i]) {
                 elements[i]->draw(framebuffer);
             }
         }
     }
 
-    void clearElements()
-    {
-        for (size_t i = 0; i < MAX_ELEMENTS; i++)
-        {
-            if (elements[i])
-            {
+    void clearElements() {
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i]) {
                 delete elements[i];
                 elements[i] = nullptr;
             }
@@ -153,21 +125,16 @@ private:
         elementCount = 0;
     }
 
-    void updateElement(DrawElement *newElement, uint8_t *framebuffer)
-    {
+    void updateElement(DrawElement *newElement) {
         // Find existing element with same ID
         DrawElement *existing = findElementById(newElement->getId());
 
-        if (existing)
-        {
-            if (!existing->isEqual(*newElement))
-            {
+        if (existing) {
+            if (!existing->isEqual(*newElement)) {
                 Serial.printf("Updating element %d\n", existing->getId());
                 // Find index of existing element
-                for (size_t i = 0; i < MAX_ELEMENTS; i++)
-                {
-                    if (elements[i]->getId() == existing->getId())
-                    {
+                for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+                    if (elements[i]->getId() == existing->getId()) {
                         existing->clearArea(framebuffer);
                         delete existing;
                         elements[i] = newElement;
@@ -175,52 +142,39 @@ private:
                         return;
                     }
                 }
-            }
-            else
-            {
+            } else {
                 existing->setUpdated(true);
                 delete newElement;
             }
-        }
-        else
-        {
+        } else {
             storeElement(newElement);
         }
     }
 
 public:
-    size_t getElementCount() const
-    {
+    size_t getElementCount() const {
         return elementCount;
     }
 
-    bool isFull() const
-    {
+    bool isFull() const {
         return elementCount >= MAX_ELEMENTS;
     }
 
-    DrawElement *getElement(size_t index)
-    {
-        if (index < MAX_ELEMENTS)
-        {
+    DrawElement *getElement(size_t index) {
+        if (index < MAX_ELEMENTS) {
             return elements[index];
         }
         return nullptr;
     }
 
     // Method to handle touch events if needed
-    bool handleTouch(int16_t x, int16_t y, uint8_t *framebuffer)
-    {
+    bool handleTouch(int16_t x, int16_t y) {
         // Iterate through elements in reverse order (top to bottom)
-        for (int i = MAX_ELEMENTS - 1; i >= 0; i--)
-        {
-            if (elements[i])
-            {
-                if (elements[i]->getType() == ElementType::BUTTON)
-                {
+        for (int i = MAX_ELEMENTS - 1; i >= 0; i--) {
+            if (elements[i]) {
+                if (elements[i]->getType() == ElementType::BUTTON) {
                     ButtonElement *button = static_cast<ButtonElement *>(elements[i]);
-                    if (button && button->isPointInside(x, y))
-                    {
+                    if (button && button->isPointInside(x, y)) {
                         epd_poweron();
                         Serial.printf("Button %d touched\n", button->getId());
 

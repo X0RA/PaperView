@@ -1,9 +1,8 @@
-#ifndef DISPLAY_MANAGER_H
-#define DISPLAY_MANAGER_H
+#ifndef UTILS_EINK_H
+#define UTILS_EINK_H
 
 #include <Arduino.h>
 #include "epd_driver.h"
-#include "../utils/api_functions.h"
 
 // Display properties structure
 typedef struct
@@ -151,4 +150,13 @@ void set_custom_display_mode(display_properties_t new_display)
     current_display = new_display;
 }
 
-#endif // DISPLAY_MANAGER_H
+/**
+ * @brief Refresh the display by clearing and powering off (4 times)
+ */
+void deep_refresh() {
+    epd_poweron();
+    epd_clear();
+    epd_poweroff();
+}
+
+#endif // UTILS_EINK_H

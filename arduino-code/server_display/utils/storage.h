@@ -1,5 +1,5 @@
-#ifndef SD_CARD_H
-#define SD_CARD_H
+#ifndef UTILS_STORAGE_H
+#define UTILS_STORAGE_H
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -373,4 +373,4 @@ bool saveImageToSD(String filename, uint8_t* img_buffer, uint32_t img_width, uin
     return true;
 }
 
-#endif // SD_CARD_H
+#endif // UTILS_STORAGE_H

@@ -1,5 +1,5 @@
-#ifndef WEB_SERVER_H
-#define WEB_SERVER_H
+#ifndef UTILS_SERVER_H
+#define UTILS_SERVER_H
 
 #include <WebServer.h>
 #include <Arduino.h>
@@ -31,4 +31,4 @@ public:
     }
 };
 
-#endif // WEB_SERVER_H
+#endif // UTILS_SERVER_H

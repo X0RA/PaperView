@@ -1,0 +1,49 @@
+// config.h
+#ifndef GLOBAL_CONFIG_H
+#define GLOBAL_CONFIG_H
+
+// Network Configuration
+#define WIFI_SSID "wifi_name"
+#define WIFI_PASSWORD "password"
+#define WIFI_CONNECT_TIMEOUT 10000
+#define WIFI_MAX_ATTEMPTS 20
+
+// API Configuration
+#define BASE_URL "http://ip_address:5000"
+#define API_TIMEOUT_MS 5000
+#define MAX_JSON_SIZE 8192
+
+// Storage Configuration
+#define SD_MAX_FILES 50
+#define IMAGE_CACHE_SIZE 10
+
+#pragma region debug
+#define LOG_NONE 0
+#define LOG_ERROR 1
+#define LOG_INFO 2 
+#define LOG_DEBUG 3
+
+// Set current debug level
+#define DEBUG_LEVEL LOG_INFO
+
+// Debug macros with different levels
+#if DEBUG_LEVEL >= LOG_ERROR
+    #define LOG_E(msg, ...) Serial.printf("[ERROR] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#else
+    #define LOG_E(msg, ...) 
+#endif
+
+#if DEBUG_LEVEL >= LOG_INFO
+    #define LOG_I(msg, ...) Serial.printf("[INFO] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#else
+    #define LOG_I(msg, ...)
+#endif
+
+#if DEBUG_LEVEL >= LOG_DEBUG
+    #define LOG_D(msg, ...) Serial.printf("[DEBUG] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#else
+    #define LOG_D(msg, ...)
+#pragma endregion
+
+
+#endif

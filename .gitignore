@@ -19,3 +19,5 @@ __pycache__
 /python_server/python_env
 /python_server/react-screen-creator/node_modules
 /python_server/layouts/layout_*.json
+arduino-code/server_display/config.h
+python-serial/python_env

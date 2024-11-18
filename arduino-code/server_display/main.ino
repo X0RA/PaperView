@@ -116,6 +116,32 @@ void setupWiFi()
     String wifiRes = connectToWiFi();
     Serial.println(wifiRes);
     webServer.begin();
+}
+
+void setupDisplay()
+{
+    epd_poweron();
+    epd_clear();
+    set_black_display_mode();
+    set_background(framebuffer);
+    epd_poweroff();
+}
+
+// setup sleep
+void setupSleep()
+{
+    // // Configure wake-up sources
+    // esp_sleep_enable_timer_wakeup(60 * 1000000); // 60 seconds in microseconds
+
+    // // Use negative edge trigger (1->0) for touch wakeup
+    // esp_err_t touch_wakeup = esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
+    // if (touch_wakeup != ESP_OK)
+    // {
+    //     Serial.printf("Failed to enable touch wakeup: %d\n", touch_wakeup);
+    // }
+
+    // // Add debug print before configuring WiFi
+    // Serial.printf("TOUCH_INT state: %d\n", digitalRead(TOUCH_INT));
 
     esp_err_t wifi_wakeup = esp_sleep_enable_wifi_wakeup();
     if (wifi_wakeup != ESP_OK)
@@ -123,33 +149,11 @@ void setupWiFi()
         Serial.printf("Failed to enable wifi wakeup: %d\n", wifi_wakeup);
     }
 
-    // Configure WiFi for power saving
+    // Configure WiFi for power saving but maintain connection
+    WiFi.setSleep(true);
+    // esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 }
-
-void setupDisplay()
-{
-    epd_poweron();
-    epd_clear();
-    set_background(framebuffer);
-    epd_poweroff();
-}
-// // setup sleep
-// void setupSleep()
-// {
-//     // Configure wake-up sources
-//     esp_sleep_enable_timer_wakeup(60 * 1000000); // 60 seconds in microseconds
-
-//     // Use negative edge trigger (1->0) for touch wakeup
-//     esp_err_t touch_wakeup = esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
-//     if (touch_wakeup != ESP_OK)
-//     {
-//         Serial.printf("Failed to enable touch wakeup: %d\n", touch_wakeup);
-//     }
-
-//     // Add debug print before configuring WiFi
-//     Serial.printf("TOUCH_INT state: %d\n", digitalRead(TOUCH_INT));
-// }
 
 void setup()
 {
@@ -161,166 +165,74 @@ void setup()
 
     epd_init();
     setupFramebuffer();
-    setupTouch();
+    // setupTouch();
     setupWiFi();
     setupDisplay();
-    setupSD();
-    // setupSleep();
+    // setupSD();
+    setupSleep();
 }
 
-// void loop()
-// {
-//     static unsigned long lastUpdate = 0;
-//     static unsigned long lastTouchUpdate = 0;
-//     static bool firstRun = true;
-//     static bool touchActive = false;
-//     static int16_t x, y;
-
-//     const unsigned long TOUCH_DEBOUNCE_TIME = 2000;
-//     const unsigned long FIRST_RUN_DELAY = 1000;
-
-//     unsigned long currentTime = millis();
-
-//     // Handle first run
-//     if (firstRun && (currentTime >= FIRST_RUN_DELAY))
-//     {
-//         if (update_display(framebuffer, elementManager, false))
-//         {
-//             firstRun = false;
-//             lastUpdate = currentTime;
-//         }
-//         return;
-//     }
-
-//     bool shouldUpdate = false;
-
-//     // Check wake-up reason
-//     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-//     switch (wakeup_reason)
-//     {
-//     case ESP_SLEEP_WAKEUP_TIMER:
-//         shouldUpdate = true;
-//         break;
-//     case ESP_SLEEP_WAKEUP_EXT0: // Changed from ESP_SLEEP_WAKEUP_TOUCHPAD
-//         if (touch.getPoint(&x, &y))
-//         {
-//             Serial.printf("Touch detected at X:%d Y:%d\n", x, y);
-//             shouldUpdate = elementManager.handleTouch(x, y, framebuffer);
-//         }
-//         break;
-//     default:
-//         break;
-//     }
-
-//     if (wakeup_reason != ESP_SLEEP_WAKEUP_UNDEFINED)
-//     {
-//         Serial.print("Woke up from sleep. Reason: ");
-//         switch (wakeup_reason)
-//         {
-//         case ESP_SLEEP_WAKEUP_TIMER:
-//             Serial.println("Timer");
-//             break;
-//         case ESP_SLEEP_WAKEUP_EXT0: // Changed from ESP_SLEEP_WAKEUP_TOUCHPAD
-//             Serial.println("Touchpad");
-//             break;
-//         default:
-//             Serial.println("Other");
-//             break;
-//         }
-//     }
-
-//     // Handle web server requests
-//     webServer.handle();
-
-//     // Update display if needed
-//     if (shouldUpdate || refreshRequested)
-//     {
-//         if (update_display(framebuffer, elementManager, false))
-//         {
-//             lastUpdate = currentTime;
-//         }
-//         refreshRequested = false;
-//     } else {
-//         // Only enter sleep if pin is in expected state
-//         int touchState = digitalRead(TOUCH_INT);
-//         Serial.printf("TOUCH_INT state before sleep: %d\n", touchState);
-
-//         if (touchState == HIGH) {  // Only sleep if pin is HIGH (no touch active)
-//             Serial.println("Entering light sleep mode...");
-//             esp_light_sleep_start();
-//         } else {
-//             Serial.println("Skipping sleep - touch pin is LOW");
-//             delay(100);  // Small delay before checking again
-//         }
-//     }
-// }
+String getWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
+{
+    switch (wakeup_reason) {
+        case ESP_SLEEP_WAKEUP_UNDEFINED:
+            return "Undefined";
+        case ESP_SLEEP_WAKEUP_ALL:
+            return "All Sources"; 
+        case ESP_SLEEP_WAKEUP_EXT0:
+            return "External Signal 0";
+        case ESP_SLEEP_WAKEUP_EXT1:
+            return "External Signal 1";
+        case ESP_SLEEP_WAKEUP_TIMER:
+            return "Timer";
+        case ESP_SLEEP_WAKEUP_TOUCHPAD:
+            return "Touchpad";
+        case ESP_SLEEP_WAKEUP_ULP:
+            return "ULP Coprocessor";
+        case ESP_SLEEP_WAKEUP_GPIO:
+            return "GPIO";
+        case ESP_SLEEP_WAKEUP_UART:
+            return "UART";
+        case ESP_SLEEP_WAKEUP_WIFI:
+            return "WiFi";
+        case ESP_SLEEP_WAKEUP_COCPU:
+            return "Coprocessor";
+        case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
+            return "Coprocessor Trap";
+        case ESP_SLEEP_WAKEUP_BT:
+            return "Bluetooth";
+        default:
+            return "Unknown";
+    }
+}
 
 void loop()
 {
-    static unsigned long lastUpdate = 0;
-    static unsigned long lastTouchUpdate = 0;
-    static bool firstRun = true;
-    static bool touchActive = false;
-    static int16_t x, y;
+    // static unsigned long lastUpdate = 0;
+    // static bool firstRun = true;
+    // unsigned long currentTime = millis();
 
-    const unsigned long TOUCH_DEBOUNCE_TIME = 2000;
-    const unsigned long AUTO_UPDATE_INTERVAL = 60000;
-    const unsigned long FIRST_RUN_DELAY = 1000;
+    // if (firstRun)
+    // {
+    //     if (update_display(framebuffer, elementManager, false))
+    //     {
+    //         firstRun = false;
+    //         lastUpdate = currentTime;
+    //     }
+    //     return;
+    // }
 
-    unsigned long currentTime = millis();
-
-    // Handle first run
-    if (firstRun && (currentTime >= FIRST_RUN_DELAY))
-    {
-        if (update_display(framebuffer, elementManager, false))
-        {
-            firstRun = false;
-            lastUpdate = currentTime;
-        }
-        return;
-    }
-
-    // Handle automatic update interval
-    if (!firstRun && (currentTime - lastUpdate >= AUTO_UPDATE_INTERVAL))
-    {
-        if (update_display(framebuffer, elementManager, false))
-        {
-            lastUpdate = currentTime;
-        }
-    }
-
-    // Handle touch input
-    if (touch.getPoint(&x, &y))
-    {
-        if (!touchActive && (currentTime - lastTouchUpdate >= TOUCH_DEBOUNCE_TIME))
-        {
-            Serial.printf("Touch detected at X:%d Y:%d\n", x, y);
-            bool refresh = elementManager.handleTouch(x, y, framebuffer);
-            if (refresh)
-            {
-                update_display(framebuffer, elementManager, false);
-            }
-            lastTouchUpdate = currentTime;
-        }
-        touchActive = true;
-    }
-    else
-    {
-        touchActive = false;
-    }
-
-    // Handle web server requests
+    // Check wake-up reason
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    String wakeup_reason_name = getWakeupReason(wakeup_reason);
+    Serial.printf("Wakeup reason name: %s\n", wakeup_reason_name.c_str());
     webServer.handle();
+    
+    // Use delay instead of immediate sleep to allow web server to work
+    delay(100);  // Small delay to process requests
 
-    // Check for refresh requests
-    if (refreshRequested)
-    {
-        if (update_display(framebuffer, elementManager, false))
-        {
-            lastUpdate = currentTime;
-        }
-        refreshRequested = false;
-    }
-
-    delay(10);
+    
+    // Use light sleep with WiFi maintained
+    esp_sleep_enable_wifi_wakeup();
+    esp_light_sleep_start();
 }

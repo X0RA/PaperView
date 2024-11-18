@@ -16,6 +16,33 @@ pages = Blueprint('pages', __name__)
 LAYOUTS_DIR = 'layouts'
 
 
+# Store for caching track info
+_track_info_cache = {
+    'data': None,
+    'last_updated': None
+}
+
+def get_cached_track_info():
+    """Get track info from cache or fetch new if expired/empty"""
+    current_time = datetime.datetime.now()
+    
+    # Check if cache exists and is less than 30 seconds old
+    if (_track_info_cache['data'] is not None and 
+        _track_info_cache['last_updated'] is not None and
+        (current_time - _track_info_cache['last_updated']).total_seconds() < 30):
+        return _track_info_cache['data']
+    
+    # Cache miss or expired - fetch new data
+    sp = get_spotify_client()
+    track_info = get_current_track_info(sp)
+    
+    # Update cache
+    _track_info_cache['data'] = track_info
+    _track_info_cache['last_updated'] = current_time
+    
+    return track_info
+
+
 def get_layout(layout_name):
     #find the layout in the layouts dir if it exists, return the json data
     layout_path = os.path.join(LAYOUTS_DIR, f"{layout_name}.json")
@@ -27,8 +54,7 @@ def get_layout(layout_name):
 
 
 def parse_layout_data(layout_data):
-    sp = get_spotify_client()
-    track_info = get_current_track_info(sp)
+    track_info = get_cached_track_info()
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     for element in layout_data['elements']:
@@ -39,7 +65,7 @@ def parse_layout_data(layout_data):
                 element['text'] = f"Now playing: {track_info['track']} by {track_info['artist']}"
         elif element['text'] == 'time':
             element['text'] = time
-        if element['path'] == 'album-art':
+        if 'path' in element and element['path'] == 'album-art':
             if track_info is None:
                 element['name'] = "None"
             else:

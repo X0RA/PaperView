@@ -68,7 +68,7 @@ public:
                    &cursor_x, &cursor_y,
                    framebuffer,
                    BLACK_ON_WHITE,
-                   &props);
+                   &font_props);
 
         active = true;
     }
@@ -86,12 +86,22 @@ public:
         x = element["x"].as<int16_t>();
         y = element["y"].as<int16_t>();
         anchor = getAnchorFromString(element["anchor"] | "bl");
-        props = get_text_properties(element["level"].as<uint8_t>());
+        font_props = get_text_properties(element["level"].as<uint8_t>());
         active = true;
         changed = true;
         updated = true;
 
         return true;
+    }
+
+    void drawTouched(uint8_t *framebuffer) override {
+        // Text elements don't have a touched state, so just draw normally
+        draw(framebuffer);
+    }
+
+    void updateElement() override {
+        // TODO: Implement
+        return;
     }
 };
 

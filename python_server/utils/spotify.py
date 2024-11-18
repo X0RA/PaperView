@@ -1,5 +1,6 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import time
 import os
 
 # Spotify API credentials
@@ -17,21 +18,40 @@ def get_spotify_client():
     return spotipy.Spotify(auth_manager=auth_manager)
 
 def get_current_track_info(sp):
+    # Static variable to store cache and timestamp
+    if not hasattr(get_current_track_info, '_cache'):
+        get_current_track_info._cache = {'data': None, 'timestamp': 0}
+    
+    # Check if cache is valid (less than 5 seconds old)
+    current_time = time.time()
+    if (current_time - get_current_track_info._cache['timestamp']) < 5 and get_current_track_info._cache['data'] is not None:
+        print("Using cached track info")
+        return get_current_track_info._cache['data']
+    
+    print("Fetching fresh track info from Spotify API")
     current_playback = sp.current_playback()
     if current_playback is None or current_playback.get('item') is None:
+        get_current_track_info._cache['data'] = None
+        get_current_track_info._cache['timestamp'] = current_time
         return None
         
     track = current_playback['item']
-    artists = ', '.join([artist['name'] for artist in track['artists']])
     album_art = track['album']['images'][0]['url'] if track['album']['images'] else None
     
-    return {
+    track_info = {
         'id': track['id'],
         'track': track['name'],
-        'artist': artists,
+        'artists': track['artists'],
+        'album': track['album']['name'],
         'album_art': album_art,
         'is_playing': current_playback['is_playing']
     }
+    
+    # Update cache
+    get_current_track_info._cache['data'] = track_info
+    get_current_track_info._cache['timestamp'] = current_time
+    
+    return track_info
 
 def toggle_playback_state(sp):
     current_playback = sp.current_playback()

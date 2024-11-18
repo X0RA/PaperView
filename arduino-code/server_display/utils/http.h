@@ -82,4 +82,44 @@ void makeQuickPost(const char *url) {
 }
 #pragma endregion
 
+#pragma region Image Methods
+
+bool fetchImageFromServer(String url, uint8_t *img_buffer, uint32_t &received_width, uint32_t &received_height, const uint32_t width, const uint32_t height) {
+    HTTPClient http;
+
+    LOG_D("URL: %s", url.c_str());
+    http.setTimeout(10000); // Set timeout to 10 seconds
+    http.begin(url);
+    int httpCode = http.GET();
+
+    if (httpCode != HTTP_CODE_OK) {
+        LOG_E("HTTP GET failed, error: %s", http.errorToString(httpCode).c_str());
+        http.end();
+        return false;
+    }
+
+    // Get dimensions from header
+    if (http.getStream().readBytes((char *)&received_width, 4) != 4 ||
+        http.getStream().readBytes((char *)&received_height, 4) != 4) {
+        LOG_E("Failed to read image dimensions");
+        http.end();
+        return false;
+    }
+
+    // Calculate size and read image data
+    size_t bytes_per_row = width / 2;
+    size_t image_data_size = bytes_per_row * height;
+
+    if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size) {
+        LOG_E("Failed to read complete image data");
+        http.end();
+        return false;
+    }
+
+    http.end();
+    LOG_D("Fetched image from server");
+    return true;
+}
+#pragma endregion
+
 #endif // UTILS_HTTP_H

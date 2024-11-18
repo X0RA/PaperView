@@ -177,32 +177,29 @@ public:
 
     // Method to handle touch events if needed
     bool handleTouch(int16_t x, int16_t y) {
-        // Iterate through elements in reverse order (top to bottom)
         for (int i = MAX_ELEMENTS - 1; i >= 0; i--) {
             if (elements[i]) {
-                if (elements[i]->getType() == ElementType::BUTTON) {
-                    ButtonElement *button = static_cast<ButtonElement *>(elements[i]);
-                    if (button && button->isPointInside(x, y)) {
-                        epd_poweron();
-                        Serial.printf("Button %d touched\n", button->getId());
 
-                        // Show touch state
-                        // TODO: Make this change color or some shit
-                        button->setTouched(true);
-                        button->draw(framebuffer);
-                        epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+                if (elements[i] && elements[i]->isPointInside(x, y)) {
+                    epd_poweron();
+                    Serial.printf("Button %d touched\n", elements[i]->getId());
 
-                        // Execute callback and check if refresh needed
-                        bool refresh = button->executeCallback(framebuffer);
+                    // Show touch state
+                    // TODO: Make this change color or some shit
+                    elements[i]->setTouched(true);
+                    elements[i]->draw(framebuffer);
+                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
 
-                        // Reset touch state
-                        button->setTouched(false);
-                        button->draw(framebuffer);
-                        epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+                    // Execute callback and check if refresh needed
+                    bool refresh = elements[i]->executeCallback(framebuffer);
 
-                        epd_poweroff();
-                        return refresh;
-                    }
+                    // Reset touch state
+                    elements[i]->setTouched(false);
+                    elements[i]->draw(framebuffer);
+                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+
+                    epd_poweroff();
+                    return refresh;
                 }
             }
         }

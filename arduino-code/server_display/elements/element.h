@@ -29,14 +29,13 @@ class DrawElement {
 
 #pragma region properties
 protected:
-    ElementType type; // The type of the element
-    uint16_t id;      // The id of the element
-    char *text;       // The text to display on the element
-    char *callback;   // The callback, url or function name to call when the element is touched
-    int16_t x;        // The x position of the element
-    int16_t y;        // The y position of the element
-    Anchor anchor;    // The anchor of the element
-    // TODO: Make sure font_props is updated in this doc
+    ElementType type;          // The type of the element
+    uint16_t id;               // The id of the element
+    char *text;                // The text to display on the element
+    char *callback;            // The callback, url or function name to call when the element is touched
+    int16_t x;                 // The x position of the element
+    int16_t y;                 // The y position of the element
+    Anchor anchor;             // The anchor of the element
     FontProperties font_props; // The properties of the font
     Rect_t bounds;             // The bounds of the element
     bool active;               // Whether the element is active
@@ -203,7 +202,7 @@ public:
         // return false;
     }
 
-    bool isPointInside(int16_t px, int16_t py) const {
+    virtual bool isPointInside(int16_t px, int16_t py) const {
         return (px >= bounds.x && px < (bounds.x + bounds.width) &&
                 py >= bounds.y && py < (bounds.y + bounds.height));
     }

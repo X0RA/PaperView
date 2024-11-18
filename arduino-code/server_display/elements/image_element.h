@@ -20,12 +20,12 @@ class ImageElement : public DrawElement {
 private:
     // char *text;          // Unused now
     // bool inverted;       // Whether the image is inverted
-    char *name;  // The name of the image
-    char *path;  // The path of the image, either "icon" or "album-art" or "url"
-    bool filled; // Whether the image is filled
-    // TODO: Make sure new image wxh tags are updated in this document
-    int16_t img_w;      // The width of the image
-    int16_t img_h;      // The height of the image
+    // char *callback  //callback url
+    char *name;         // The name of the image
+    char *endpoint;     // The endpoint of the image, either "icon" or "album-art" or "url"
+    bool filled;        // Whether the image is filled
+    int16_t width;      // The width of the image
+    int16_t height;     // The height of the image
     ImageType img_type; // The type of the image
 
     // The following are inherited from DrawElement and are here for reference.
@@ -41,109 +41,14 @@ private:
     // bool updated;
 
 #pragma region(fetch from server / SD)Private Methods
-    /**
-     * @brief Fetch an image from the server
-     */
-    // TODO: move elsewhere?
-    bool fetchImageFromServer(uint8_t *img_buffer, uint32_t &img_width, uint32_t &img_height) {
-        HTTPClient http;
-        String url = String(BASE_URL) + "/image/";
-
-        if (strncmp(path, "icon", 4) == 0) {
-            url += String(path) + "/" + String(name) +
-                   "?width=" + String(width) +
-                   "&height=" + String(height) +
-                   "&filled=" + String(filled);
-        } else if (strncmp(path, "album-art", 9) == 0) {
-            url += String(path) + "/" +
-                   "?width=" + String(width) +
-                   "&height=" + String(height);
-        } else {
-            Serial.println("Invalid path type");
-            return false;
-        }
-
-        LOG_D("URL: %s", url.c_str());
-        http.setTimeout(10000); // Set timeout to 10 seconds
-        http.begin(url);
-        int httpCode = http.GET();
-
-        if (httpCode != HTTP_CODE_OK) {
-            LOG_E("HTTP GET failed, error: %s", http.errorToString(httpCode).c_str());
-            http.end();
-            return false;
-        }
-
-        // Get dimensions from header
-        if (http.getStream().readBytes((char *)&img_width, 4) != 4 ||
-            http.getStream().readBytes((char *)&img_height, 4) != 4) {
-            LOG_E("Failed to read image dimensions");
-            http.end();
-            return false;
-        }
-
-        // Calculate size and read image data
-        size_t bytes_per_row = img_width / 2;
-        size_t image_data_size = bytes_per_row * img_height;
-
-        if (http.getStream().readBytes((char *)img_buffer, image_data_size) != image_data_size) {
-            LOG_E("Failed to read complete image data");
-            http.end();
-            return false;
-        }
-
-        http.end();
-        LOG_D("Fetched image from server");
-        return true;
-    }
 
     /**
-     * @brief Read an image from the SD card
+     * @brief Get the type of the image from the endpoint
      */
-    // TODO: move elsewhere?
-    bool readImageFromSD(uint8_t *img_buffer, uint32_t &img_width, uint32_t &img_height) {
-        String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);
-        LOG_D("Checking if image exists on SD card: %s", filename.c_str());
-        if (!SD.exists(filename)) {
-            LOG_D("Image not found on SD card: %s", filename.c_str());
-            return false;
-        }
-
-        File file = SD.open(filename, FILE_READ);
-        if (!file) {
-            LOG_E("Failed to open image file");
-            return false;
-        }
-
-        // Read dimensions
-        if (file.read((uint8_t *)&img_width, 4) != 4 ||
-            file.read((uint8_t *)&img_height, 4) != 4) {
-            file.close();
-            LOG_E("Failed to read image dimensions");
-            return false;
-        }
-
-        // Read image data
-        size_t bytes_per_row = img_width / 2;
-        size_t image_data_size = bytes_per_row * img_height;
-        if (file.read(img_buffer, image_data_size) != image_data_size) {
-            file.close();
-            LOG_E("Failed to read image data");
-            return false;
-        }
-
-        file.close();
-        LOG_D("Read image from SD card");
-        return true;
-    }
-
-    /**
-     * @brief Get the type of the image from the path
-     */
-    ImageType getImageTypeFromString(const char *path) {
-        if (strncmp(path, "icon", 4) == 0)
+    ImageType getImageTypeFromString(const char *endpoint) {
+        if (strncmp(endpoint, "icon", 4) == 0)
             return ImageType::ICON;
-        if (strncmp(path, "spotify-album-art", 9) == 0)
+        if (strncmp(endpoint, "album-art", 9) == 0)
             return ImageType::SPOTIFY_ALBUM_ART;
         return ImageType::URL;
     }
@@ -164,7 +69,7 @@ public:
     ImageElement() : DrawElement() {
         type = ElementType::IMAGE;
         name = nullptr;
-        path = nullptr;
+        endpoint = nullptr;
     }
 
     // destructor
@@ -172,9 +77,14 @@ public:
         if (name) {
             free(name);
         }
-        if (path) {
-            free(path);
+        if (endpoint) {
+            free(endpoint);
         }
+    }
+
+    void updateElement() override {
+        // TODO: Implement
+        return;
     }
 
 #pragma region Drawing Methods
@@ -187,9 +97,29 @@ public:
             return;
         }
 
-        uint32_t img_width, img_height;
+        // Not really used but keeping for now
+        uint32_t received_width, received_height;
         size_t bytes_per_row = width / 2;
         size_t image_data_size = bytes_per_row * height;
+
+        String storage_filename = String(name) + "_" + String(width) + "x" + String(height) + ".bin";
+
+        String url;
+
+        // routes are /album-art and /icon/<icon_name>
+        // params are width, height, and filled for icons
+        switch (img_type) {
+        case ImageType::ICON:
+            url = String(BASE_URL) + "/image/" + String(endpoint) + String("/") + String(name) + "?width=" + String(width) + "&height=" + String(height) + "&filled=" + String(filled);
+            break;
+        case ImageType::SPOTIFY_ALBUM_ART:
+            url = String(BASE_URL) + "/image/" + String(endpoint) + String("/") + "?width=" + String(width) + "&height=" + String(height);
+            break;
+        // unused as of now
+        case ImageType::URL:
+            url = String(BASE_URL) + "/image/" + String(endpoint) + "/" + String(name) + "?width=" + String(width) + "&height=" + String(height);
+            break;
+        }
 
         uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
         if (!img_buffer) {
@@ -199,14 +129,15 @@ public:
 
         bool success = false;
         if (isCardMounted()) {
-            success = readImageFromSD(img_buffer, img_width, img_height);
+            success = readImageBufferFromSD(storage_filename, img_buffer, received_width, received_height);
         }
 
         if (!success) {
-            success = fetchImageFromServer(img_buffer, img_width, img_height);
+            // TODO: ewwies what am i doing here?
+            success = fetchImageFromServer(url, img_buffer, received_width, received_height,
+                                           static_cast<uint32_t>(width), static_cast<uint32_t>(height));
             if (success) {
-                String filename = String("/") + String(width) + "x" + String(height) + "_" + String(name);
-                saveImageToSD(filename, img_buffer, img_width, img_height);
+                saveImageBufferToSD(storage_filename, img_buffer, received_width, received_height);
             }
         }
 
@@ -216,7 +147,7 @@ public:
         }
 
         // Validate image will fit on display
-        if (x + img_width > EPD_WIDTH || y + img_height > EPD_HEIGHT ||
+        if (x + width > EPD_WIDTH || y + height > EPD_HEIGHT ||
             x < 0 || y < 0) {
             LOG_E("Image position out of bounds");
             free(img_buffer);
@@ -228,8 +159,8 @@ public:
         uint8_t x_pixel_offset = x % 2;
 
         // Copy image data into framebuffer at correct position
-        for (uint32_t pos_y = 0; pos_y < img_height; pos_y++) {
-            for (uint32_t pos_x = 0; pos_x < img_width; pos_x++) {
+        for (uint32_t pos_y = 0; pos_y < height; pos_y++) {
+            for (uint32_t pos_x = 0; pos_x < width; pos_x++) {
                 // Calculate source byte and nibble
                 uint32_t src_byte_idx = (pos_y * bytes_per_row) + (pos_x / 2);
                 bool is_high_nibble = (pos_x % 2 == 0);
@@ -243,7 +174,7 @@ public:
                 }
 
                 // Handle inversion and transparency
-                if (inverted) {
+                if (shouldInvert()) {
                     if (pixel == 0x0F)
                         pixel = 0x00;
                     else if (pixel == 0x00)
@@ -277,15 +208,15 @@ public:
         // bounds = {
         //     .x = static_cast<int32_t>(x),
         //     .y = static_cast<int32_t>(y),
-        //     .width = static_cast<int32_t>(img_width),
-        //     .height = static_cast<int32_t>(img_height)};
+        //     .width = static_cast<int32_t>(width),
+        //     .height = static_cast<int32_t>(height)};
 
         bounds = {
             .x = max(0, min(EPD_WIDTH - 1, static_cast<int32_t>(x))),
             .y = max(0, min(EPD_HEIGHT - 1, static_cast<int32_t>(y))),
-            .width = min(static_cast<int32_t>(img_width),
+            .width = min(static_cast<int32_t>(width),
                          EPD_WIDTH - max(0, static_cast<int32_t>(x))),
-            .height = min(static_cast<int32_t>(img_height),
+            .height = min(static_cast<int32_t>(height),
                           EPD_HEIGHT - max(0, static_cast<int32_t>(y)))};
 
         free(img_buffer);
@@ -311,9 +242,10 @@ public:
         clear_area(bounds, framebuffer);
     }
 
+    // TODO: Implement touch effect for image / icon
+    // Maybe get image from SD if exists and turn the non background color pixels to grey
     void drawTouched(uint8_t *framebuffer) override {
-        // TODO: Implement touch effect for image / icon
-        // Maybe get image from SD if exists and turn the non background color pixels to grey
+        return;
     }
 
 #pragma endregion
@@ -331,7 +263,7 @@ public:
      *   "anchor": "bl",
      *   "callback": "",
      *   "name": "bell",
-     *   "path": "icon",
+     *   "endpoint": "icon",
      *   "inverted": false,
      *   "filled": true,
      *   "width": 64,
@@ -345,7 +277,7 @@ public:
         const char *textContent = element["text"] | "";
         const char *callbackContent = element["callback"] | "";
         const char *nameContent = element["name"] | "";
-        const char *pathContent = element["path"] | "";
+        const char *endpointContent = element["endpoint"] | "";
 
         id = element["id"].as<uint16_t>();
         text = strdup(textContent);
@@ -358,12 +290,12 @@ public:
         updated = true;
         callback = strdup(callbackContent);
         name = strdup(nameContent);
-        path = strdup(pathContent);
+        endpoint = strdup(endpointContent);
         touched = false;
         filled = element["filled"] | true;
         width = element["width"].as<int16_t>();
         height = element["height"].as<int16_t>();
-        img_type = getImageTypeFromString(pathContent);
+        img_type = getImageTypeFromString(endpointContent);
         return true;
     }
 
@@ -371,7 +303,7 @@ public:
     bool isEqual(const ImageElement &other) const {
         return DrawElement::isEqual(static_cast<const DrawElement &>(other)) &&
                strcmp(name, other.name) == 0 &&
-               strcmp(path, other.path) == 0 &&
+               strcmp(endpoint, other.endpoint) == 0 &&
                width == other.width &&
                height == other.height &&
                anchor == other.anchor &&

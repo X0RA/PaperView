@@ -1,20 +1,70 @@
 {
   "elements": [
     {
-      "id": 9,
+      "id": 10,
       "type": "image",
       "x": 0,
       "y": 0,
       "anchor": "tl",
-      "width": 960,
+      "width": 540,
       "height": 540,
-      "text": "",
       "level": 1,
-      "callback": "/api/image/8",
       "inverted": false,
       "filled": true,
-      "name": "something",
-      "path": "album-art"
+      "text": "",
+      "name": "artist_name_track_title_or_icon_name",
+      "endpoint": "album-art",
+      "callback": "/api/image/8"
+    },
+    {
+      "id": 11,
+      "type": "image",
+      "x": 860,
+      "y": 440,
+      "anchor": "br",
+      "width": 100,
+      "height": 100,
+      "level": 1,
+      "inverted": false,
+      "filled": true,
+      "text": "",
+      "name": "artist_name_track_title_or_icon_name",
+      "endpoint": "album-art",
+      "callback": "/api/image/8"
+    },
+    {
+      "id": 1,
+      "type": "text",
+      "x": 540,
+      "y": 4,
+      "anchor": "tl",
+      "text": "track_artist",
+      "level": 1
+    },
+    {
+      "id": 2,
+      "type": "text",
+      "x": 540,
+      "y": 48,
+      "anchor": "tl",
+      "text": "track_title",
+      "level": 1
+    },
+    {
+      "id": 12,
+      "type": "image",
+      "x": 540,
+      "y": 98,
+      "anchor": "br",
+      "width": 100,
+      "height": 100,
+      "level": 1,
+      "inverted": false,
+      "filled": true,
+      "text": "",
+      "name": "chevron-right",
+      "endpoint": "icon",
+      "callback": "/spotify/playback/toggle"
     }
   ],
   "metadata": {

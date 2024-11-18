@@ -150,9 +150,9 @@ public:
         // Determine background color based on touch state
         uint8_t background_color;
         if (touched) {
-            background_color = props.bg_color == 0 ? 15 : 255;
+            background_color = font_props.bg_color == 0 ? 15 : 255;
         } else {
-            background_color = props.bg_color == 15 ? 0 : 255;
+            background_color = font_props.bg_color == 15 ? 0 : 255;
         }
 
         // Draw the button
@@ -169,10 +169,10 @@ public:
         int32_t text_y = button_y + padding_y + h;
 
         // Set up text properties
-        FontProperties textProps = props;
-        if (filled) {
-            textProps.bg_color = props.fg_color;
-            textProps.fg_color = props.bg_color;
+        FontProperties textProps = font_props;
+        if (shouldInvert()) {
+            textProps.bg_color = font_props.fg_color;
+            textProps.fg_color = font_props.bg_color;
         }
 
         // Draw the text
@@ -183,6 +183,11 @@ public:
                    &textProps);
 
         active = true;
+    }
+
+    void updateElement() override {
+        // TODO: Implement
+        return;
     }
 
     bool updateFromJson(JsonObject &element) override {
@@ -214,6 +219,7 @@ public:
 
     void drawTouched(uint8_t *framebuffer) override {
         // TODO: Implement, invert colors of background and text
+        return;
     }
 #pragma endregion
 

@@ -24,6 +24,23 @@ def get_layout(layout_name):
             return json.load(file)
     else:
         return None
+    # {
+    #   "id": 0,
+    #   "type": "image",
+    #   "x": 0,
+    #   "y": 0,
+    #   "anchor": "tl",
+    #   "width": 540,
+    #   "height": 540,
+    #   "level": 1,
+    #   "inverted": false,
+    #   "filled": true,
+    #   "text": "",
+    #   "name": "artist_name_track_title_or_icon_name",
+    #   "endpoint": "album-art",
+    #   "callback": "/api/image/8"
+    # },
+
 
 
 def parse_layout_data(layout_data):
@@ -32,26 +49,45 @@ def parse_layout_data(layout_data):
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     for element in layout_data['elements']:
-        if element['text'] == 'track_info':
-            if track_info is None:
-                element['text'] = "No track currently playing"
-            else:
-                element['text'] = f"Now playing: {track_info['track']} by {track_info['artist']}"
-        elif element['text'] == 'time':
-            element['text'] = time
-        if element['path'] == 'album-art':
-            if track_info is None:
-                element['name'] = "None"
-            else:
-                name = f"{track_info['artist']}_{track_info['track']}"
-                # make sure the name is 16 characters or less and standard utf-8
-                name = name[:16]
-                # Replace non-ascii characters and special characters with underscores
-                name = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
-                # Ensure it's valid UTF-8
-                name = name.encode('ascii', 'ignore').decode('ascii')
-                element['name'] = name
+        if element['type'] == 'image':
+            if element['endpoint'] == 'album-art':
+                if track_info is None:
+                    element['name'] = "None"
+                else:
+                    #name is used as the filename on the sd card
+                    name = f"{track_info['artists'][0]['name']}_{track_info['album']}"
+                    name = name[:16]
+                    name = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
+                    name = name.encode('ascii', 'ignore').decode('ascii')
+                    name = name.lower()
+                    element['name'] = name
+
+
+        if element['type'] == 'text':
+                if element['text'] == 'track_info':
+                    if track_info is None:
+                        element['text'] = " "
+                    else:
+                        element['text'] = f"{track_info['track']} by {track_info['artists'][0]['name']}"
+
+                if element['text'] == 'track_title':
+                    if track_info is None:
+                        element['text'] = "No track"
+                    else:
+                        element['text'] = track_info['track']
+
+                if element['text'] == 'track_artist':
+                    if track_info is None:
+                        element['text'] = ""
+                    else:
+                        element['text'] = track_info['artists'][0]['name']
+
+                if element['text'] == 'time':
+                    element['text'] = time
+
+
     return layout_data
+
 
 @pages.route('/<layout_name>', methods=['GET'])
 def get_layout_data(layout_name):

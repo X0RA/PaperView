@@ -29,6 +29,7 @@ bool isCardMounted() {
     return cardMounted;
 }
 
+#pragma region Given file System Methods
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
     if (!cardMounted) {
         return;
@@ -252,42 +253,63 @@ void testSD() {
     Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
     Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
 }
+#pragma endregion
 
-bool saveImageToSD(String filename, uint8_t *img_buffer, uint32_t img_width, uint32_t img_height) {
-    if (!cardMounted) {
+/**
+ * Saves a 4-bit grayscale image to the SD card with the following format:
+ * - Header: 8 bytes (4 bytes width + 4 bytes height)
+ * - Data: Raw 4-bit grayscale pixel data (packed 2 pixels per byte)
+ *
+ * @param filename Path relative to IMAGE_SD_PATH (e.g., "icons/weather/sun.bin")
+ * @param img_buffer Raw 4-bit grayscale image data (2 pixels per byte)
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ * @return true if save successful, false otherwise
+ */
+bool saveImageBufferToSD(String filename, uint8_t *img_buffer, uint32_t width, uint32_t height) {
+    if (!cardMounted)
         return false;
+
+    // Make sure the images directory exists
+    if (!SD.exists(IMAGE_SD_PATH)) {
+        if (!SD.mkdir(IMAGE_SD_PATH)) {
+            LOG_E("Failed to create images directory");
+            return false;
+        }
     }
 
-    // Make sure the path exists
+    // If filename contains subdirectories (e.g. "folder/image.bin"), create the subdirectory structure
+    // Example: For filename "icons/weather/sun.bin", creates "/images/icons/weather/" if it doesn't exist
     if (filename.indexOf("/") != -1) {
-        String dir = filename.substring(0, filename.lastIndexOf("/"));
-        if (!SD.exists(dir)) {
-            if (!SD.mkdir(dir)) {
-                LOG_E("Failed to create directory");
+        String full_path = String(IMAGE_SD_PATH) + "/" + filename.substring(0, filename.lastIndexOf("/"));
+        if (!SD.exists(full_path)) {
+            if (!SD.mkdir(full_path)) {
+                LOG_E("Failed to create subdirectory");
                 return false;
             }
         }
     }
 
-    LOG_I("Saving image to SD card: %s", filename.c_str());
-    File file = SD.open(filename, FILE_WRITE);
+    String file_path = String(IMAGE_SD_PATH) + String("/") + filename;
+    LOG_I("Saving image to SD card: %s", file_path.c_str());
+    File file = SD.open(file_path, FILE_WRITE);
 
     if (!file) {
         LOG_E("Failed to open file for writing");
         return false;
     }
 
-    size_t bytes_per_row = img_width / 2;
-    size_t image_data_size = bytes_per_row * img_height;
+    size_t bytes_per_row = width / 2;
+    size_t image_data_size = bytes_per_row * height;
 
     // Write dimensions
-    if (file.write((uint8_t *)&img_width, 4) != 4) {
+    if (file.write((uint8_t *)&width, 4) != 4) {
         LOG_E("Failed to write width");
         file.close();
         return false;
     }
 
-    if (file.write((uint8_t *)&img_height, 4) != 4) {
+    if (file.write((uint8_t *)&height, 4) != 4) {
         LOG_E("Failed to write height");
         file.close();
         return false;
@@ -302,6 +324,53 @@ bool saveImageToSD(String filename, uint8_t *img_buffer, uint32_t img_width, uin
 
     file.close();
     LOG_D("Successfully saved image to SD card");
+    return true;
+}
+
+/**
+ * Reads a 4-bit grayscale image from the SD card with the following format:
+ * - Header: 8 bytes (4 bytes width + 4 bytes height)
+ * - Data: Raw 4-bit grayscale pixel data (packed 2 pixels per byte)
+ *
+ * @param filename Path relative to IMAGE_SD_PATH (e.g., "icons/weather/sun.bin")
+ * @param img_buffer Raw 4-bit grayscale image data (2 pixels per byte)
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ * @return true if read successful, false otherwise
+ */
+bool readImageBufferFromSD(String filename, uint8_t *img_buffer, uint32_t &width, uint32_t &height) {
+    String file_path = String(IMAGE_SD_PATH) + String("/") + filename;
+    LOG_D("Checking if image exists on SD card: %s", file_path.c_str());
+    if (!SD.exists(file_path)) {
+        LOG_D("Image not found on SD card: %s", file_path.c_str());
+        return false;
+    }
+
+    File file = SD.open(file_path, FILE_READ);
+    if (!file) {
+        LOG_E("Failed to open image file");
+        return false;
+    }
+
+    // Read dimensions
+    if (file.read((uint8_t *)&width, 4) != 4 ||
+        file.read((uint8_t *)&height, 4) != 4) {
+        file.close();
+        LOG_E("Failed to read image dimensions");
+        return false;
+    }
+
+    // Read image data
+    size_t bytes_per_row = width / 2;
+    size_t image_data_size = bytes_per_row * height;
+    if (file.read(img_buffer, image_data_size) != image_data_size) {
+        file.close();
+        LOG_E("Failed to read image data");
+        return false;
+    }
+
+    file.close();
+    LOG_D("Read image from SD card");
     return true;
 }
 

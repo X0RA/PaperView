@@ -268,12 +268,18 @@ def convert_image_to_epd_data(image, target_width=1200, target_height=826, proce
     """
     if target_width % 2:
         raise ValueError("Target width must be even!")
+    
 
-    im = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
     if process_image:
+        im = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
         im = analyze_and_adjust_image(im)
     else:
-        im = im.convert(mode="L")
+        im = image.convert(mode="L")
+        im.thumbnail((target_width, target_height), Image.Resampling.LANCZOS)
+
+
+    # Save the processed image
+    im.save('output.png')
 
     # Get dimensions
     width = im.size[0]
@@ -299,6 +305,7 @@ def convert_image_to_epd_data(image, target_width=1200, target_height=826, proce
             byte_index += 1
 
     return (width, height, bytes_data)
+
 
 def convert_image_bytes_to_epd_data(image_bytes, target_width=1200, target_height=826):
     """

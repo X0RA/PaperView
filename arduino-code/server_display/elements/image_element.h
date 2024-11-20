@@ -245,7 +245,69 @@ public:
     // TODO: Implement touch effect for image / icon
     // Maybe get image from SD if exists and turn the non background color pixels to grey
     void drawTouched(uint8_t *framebuffer) override {
-        return;
+        if (img_type == ImageType::ICON) {
+            String storage_filename = String(name) + "_" + String(width) + "x" + String(height) + ".bin";
+            // Not really used but keeping for now
+            uint32_t received_width, received_height;
+            size_t bytes_per_row = width / 2;
+            size_t image_data_size = bytes_per_row * height;
+            uint8_t *img_buffer = (uint8_t *)malloc(image_data_size);
+            if (!img_buffer) {
+                LOG_E("Failed to allocate image buffer");
+                return;
+            }
+            bool success = false;
+            if (isCardMounted()) {
+                success = readImageBufferFromSD(storage_filename, img_buffer, received_width, received_height);
+            }
+            if (!success) {
+                free(img_buffer);
+                return;
+            }
+            // Calculate byte offset for x position (2 pixels per byte)
+            uint16_t x_byte_offset = x / 2;
+            uint8_t x_pixel_offset = x % 2;
+
+            // Copy image data into framebuffer at correct position
+            for (uint32_t pos_y = 0; pos_y < height; pos_y++) {
+                for (uint32_t pos_x = 0; pos_x < width; pos_x++) {
+                    // Calculate source byte and nibble
+                    uint32_t src_byte_idx = (pos_y * bytes_per_row) + (pos_x / 2);
+                    bool is_high_nibble = (pos_x % 2 == 0);
+                    uint8_t pixel;
+
+                    // Extract the pixel value (4 bits)
+                    if (is_high_nibble) {
+                        pixel = (img_buffer[src_byte_idx] >> 4) & 0x0F;
+                    } else {
+                        pixel = img_buffer[src_byte_idx] & 0x0F;
+                    }
+
+                    // Handle inversion and transparency
+                    if (pixel == 0x0F)
+                        pixel = 0x00;
+                    else if (pixel == 0x00)
+                        pixel = 0x0F;
+
+                    // Skip black pixels for transparency
+                    if (pixel == 0x00)
+                        continue;
+
+                    // Calculate destination position
+                    uint32_t dst_x = x + pos_x;
+                    uint32_t dst_y = y + pos_y;
+                    uint32_t dst_byte_idx = (dst_y * EPD_WIDTH / 2) + (dst_x / 2);
+                    bool dst_is_high_nibble = (dst_x % 2 == 0);
+
+                    // Write the pixel to the framebuffer
+                    if (dst_is_high_nibble) {
+                        framebuffer[dst_byte_idx] = (framebuffer[dst_byte_idx] & 0x0F) | (pixel << 4);
+                    } else {
+                        framebuffer[dst_byte_idx] = (framebuffer[dst_byte_idx] & 0xF0) | pixel;
+                    }
+                }
+            }
+        }
     }
 
 #pragma endregion

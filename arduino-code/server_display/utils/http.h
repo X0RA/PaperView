@@ -69,17 +69,21 @@ ApiResponse_t makePostRequest(const char *url, const char *payload = "") {
     return response;
 }
 
-void makeQuickPost(const char *url) {
+bool makeQuickPost(const char *callback) {
     if (WiFi.status() != WL_CONNECTED) {
         LOG_E("WiFi not connected!");
-        return;
+        return false;
     }
 
+    String url = String(BASE_URL) + String(callback);
     HTTPClient http;
     http.begin(url);
-    http.POST("");
+    int httpCode = http.POST("");
     http.end();
+
+    return httpCode == HTTP_CODE_OK;
 }
+
 #pragma endregion
 
 #pragma region Image Methods

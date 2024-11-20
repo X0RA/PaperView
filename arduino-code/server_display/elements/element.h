@@ -6,6 +6,7 @@
 #include "firasans.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "../utils/http.h"
 
 enum class ElementType {
     TEXT,
@@ -180,26 +181,25 @@ public:
 #pragma region touch methods
 
     bool executeCallback(uint8_t *framebuffer) {
-        // TODO: implement callback execution
-        Serial.println("Executing callback");
-        return true;
-        // if (callback && strlen(callback) > 0) {
-        //     if (strcmp(callback, "toggle-dark") == 0) {
-        //         if (current_display.background_color == 15) {
-        //             set_black_display_mode();
-        //         } else {
-        //             set_white_display_mode();
-        //         }
-        //         epd_clear();
-        //         set_background(framebuffer);
-        //         return true;
-        //     }
-        //     if (strcmp(callback, "refresh") == 0) {
-        //         return true;
-        //     }
-        //     makeQuickPost(callback);
-        // }
-        // return false;
+        if (!callback || strlen(callback) == 0) {
+            return false;
+        }
+
+        // Handle built-in callbacks
+        if (strcmp(callback, "toggle-dark") == 0) {
+            if (current_display.background_color == 15) {
+                set_black_display_mode();
+            } else {
+                set_white_display_mode();
+            }
+            return true;
+        }
+
+        if (strcmp(callback, "refresh") == 0) {
+            return true;
+        }
+
+        return makeQuickPost(callback);
     }
 
     virtual bool isPointInside(int16_t px, int16_t py) const {

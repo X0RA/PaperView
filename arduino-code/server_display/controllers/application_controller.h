@@ -105,10 +105,16 @@ public:
 
 #pragma region Public Methods
     void loop() {
+        // currently this will also turn on the epd screen
         handleTouch();
+
+        // check if we need to update the display based on timer
         checkAutoUpdate();
+
+        // handle web requests
         webServer.handle();
 
+        // update display if needed, this function also turn on the epd display
         if (refresh_display) {
             updateDisplay();
         }
@@ -117,15 +123,17 @@ public:
     }
 
     void updateDisplay() {
-        epd_poweron();
-
         ApiResponse_t response = getPage();
         if (updateDisplayFromResponse(response)) {
-            epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+            drawDisplay();
             refresh_display = false;
             last_update_time = millis();
         }
+    }
 
+    void drawDisplay() {
+        epd_poweron();
+        epd_draw_grayscale_image(epd_full_screen(), framebuffer);
         epd_poweroff();
     }
 

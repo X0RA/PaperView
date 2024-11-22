@@ -239,7 +239,7 @@ public:
             }
         }
 
-        clear_area(bounds, framebuffer);
+        clear_framebuffer_area(bounds, framebuffer);
     }
 
     // TODO: Implement touch effect for image / icon

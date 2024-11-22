@@ -95,8 +95,17 @@ public:
     }
 
     void drawTouched(uint8_t *framebuffer) override {
-        // Text elements don't have a touched state, so just draw normally
+        LOG_D("Drawing touched text element id=%d", id);
+
+        // First draw the text normally
         draw(framebuffer);
+
+        // Draw a line through the middle of the text using the stored bounds
+        int32_t line_y = bounds.y + (bounds.height / 2);
+
+        epd_draw_line(bounds.x, line_y,
+                      bounds.x + bounds.width, line_y,
+                      BLACK_ON_WHITE, framebuffer);
     }
 
     void updateElement() override {

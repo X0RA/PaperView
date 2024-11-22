@@ -71,7 +71,7 @@ display_properties_t current_display = WHITE_DISPLAY;
 /**
  * @brief Clear a specific area of the display using current background color in framebuffer
  */
-void clear_area(Rect_t area, uint8_t *framebuffer) {
+void clear_framebuffer_area(Rect_t area, uint8_t *framebuffer) {
     if (!framebuffer)
         return;
 
@@ -96,6 +96,23 @@ void clear_area(Rect_t area, uint8_t *framebuffer) {
 }
 
 /**
+ * @brief Push pixels to a specific area of the display with a default 2 cycle refresh
+ */
+void clear_area(Rect_t area, uint8_t *framebuffer, int32_t cycles = 2, int16_t white_time = 50, int16_t dark_time = 50) {
+    if (!framebuffer)
+        return;
+
+    for (int32_t c = 0; c < cycles; c++) {
+        for (int32_t i = 0; i < 4; i++) {
+            epd_push_pixels(area, dark_time, 0);
+        }
+        for (int32_t i = 0; i < 4; i++) {
+            epd_push_pixels(area, white_time, 1);
+        }
+    }
+}
+
+/**
  * @brief Set the entire display background using current background color
  */
 bool set_background(uint8_t *framebuffer) {
@@ -105,7 +122,7 @@ bool set_background(uint8_t *framebuffer) {
     }
 
     Rect_t full_screen = epd_full_screen();
-    clear_area(full_screen, framebuffer);
+    clear_framebuffer_area(full_screen, framebuffer);
     return true;
 }
 
@@ -142,7 +159,7 @@ void set_custom_display_mode(display_properties_t new_display) {
 /**
  * @brief Refresh the display by clearing and powering off (4 times)
  */
-void deep_refresh() {
+void full_refresh() {
     LOG_D("Deep refreshing display");
     epd_poweron();
     epd_clear();

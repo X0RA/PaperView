@@ -7,8 +7,10 @@
 #include "../utils/http.h"
 #include "../utils/server.h"
 #include "../utils/storage.h"
+#include "../utils/types.h"
 #include "epd_driver.h"
 #include <Arduino.h>
+#include <atomic>
 
 // touch
 #include "firasans.h"
@@ -23,41 +25,70 @@ private:
 #pragma region Properties
     uint8_t *const framebuffer;
     ElementManager elements;
-    TouchDrvGT911 &touch;
     DisplayWebServer webServer;
 
-    bool touch_active;
+    // Touch
+    TouchDrvGT911 &touch;
+    TaskHandle_t touchTaskHandle;
+    volatile bool touch_active;
     unsigned long last_touch_time;
     unsigned long last_update_time;
-    bool refresh_display;
+
+    // Refresh
+    std::atomic<RefreshType> refresh_type{NO_REFRESH};
+
+    static void touchTaskWrapper(void *parameter) {
+        ApplicationController *controller = (ApplicationController *)parameter;
+        controller->touchTask();
+    }
+
+    void touchTask() {
+        int16_t x, y;
+        while (true) {
+            unsigned long current_time = millis();
+
+            if (touch.getPoint(&x, &y)) {
+                if (!touch_active &&
+                    (current_time - last_touch_time >= TOUCH_DEBOUNCE_TIME)) {
+                    LOG_D("Touch at X:%d Y:%d", x, y);
+                    if (elements.handleTouch(x, y)) {
+                        refresh_type.store(SOFT_REFRESH);
+                    }
+                    last_touch_time = current_time;
+                }
+                touch_active = true;
+            } else {
+                touch_active = false;
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(10)); // Small delay to prevent task from hogging CPU (20ms)
+        }
+    }
+
 #pragma endregion
 
 #pragma region Private Methods
-    void handleTouch() {
-        int16_t x, y;
-        unsigned long current_time = millis();
-
-        if (touch.getPoint(&x, &y)) {
-            if (!touch_active &&
-                (current_time - last_touch_time >= TOUCH_DEBOUNCE_TIME)) {
-                LOG_D("Touch at X:%d Y:%d", x, y);
-                if (elements.handleTouch(x, y)) {
-                    refresh_display = true;
-                }
-                last_touch_time = current_time;
-            }
-            touch_active = true;
-        } else {
-            touch_active = false;
-        }
-    }
 
     void checkAutoUpdate() {
-        if (millis() - last_update_time >= AUTO_UPDATE_INTERVAL) {
-            refresh_display = true;
+        unsigned long current_time = millis();
+        unsigned long time_since_update = current_time - last_update_time;
+
+        if (time_since_update >= AUTO_FULL_UPDATE_INTERVAL) {
+            refresh_type.store(FULL_REFRESH);
+            last_update_time = current_time;
+        } else if (time_since_update >= AUTO_SOFT_UPDATE_INTERVAL) {
+            refresh_type.store(SOFT_REFRESH);
+            last_update_time = current_time;
         }
     }
 
+    /**
+     * @brief Update the display from an API response
+     * @param response The API response to update the display from
+     * @return Whether the elements were updated successfully
+     * true = elements updated, display needs to be redrawn
+     * false = no elements updated, display does not need to be redrawn (keeps last image)
+     */
     bool updateDisplayFromResponse(ApiResponse_t &response) {
         if (!response.success) {
             LOG_E("Failed to get API response");
@@ -68,12 +99,6 @@ private:
         if (doc.isNull()) {
             LOG_E("Failed to parse JSON data");
             return false;
-        }
-
-        // Handle clear flag
-        if (doc["clear"] | false) {
-            LOG_I("Clearing display");
-            set_background(framebuffer);
         }
 
         JsonArray elements_data = doc["elements"];
@@ -95,51 +120,92 @@ public:
                                                                         last_update_time(0),
                                                                         touch(touch),
                                                                         elements(framebuffer),
-                                                                        webServer(&refresh_display) {};
+                                                                        webServer(&refresh_type),
+                                                                        touchTaskHandle(NULL) {
+        // Create the touch handling thread
+        xTaskCreate(
+            touchTaskWrapper, // Task function
+            "TouchTask",      // Task name
+            4096,             // Stack size (bytes)
+            this,             // Task parameters
+            1,                // Priority
+            &touchTaskHandle  // Task handle
+        );
+    };
 
     ~ApplicationController() {
-        // No cleanup needed
+        if (touchTaskHandle != NULL) {
+            vTaskDelete(touchTaskHandle);
+        }
     }
 
 #pragma endregion
 
 #pragma region Public Methods
-    void loop() {
-        // currently this will also turn on the epd screen
-        handleTouch();
 
+    /**
+     * @brief Main loop for the display lifecycle
+     */
+    void loop() {
         // check if we need to update the display based on timer
         checkAutoUpdate();
 
-        // handle web requests
-        webServer.handle();
-
-        // update display if needed, this function also turn on the epd display
-        if (refresh_display) {
-            updateDisplay();
+        // Render touched elements
+        if (elements.renderTouched()) {
+            drawDisplay();
         }
 
-        delay(10); // 10ms delay
+        // update display if needed, this function also turn on the epd display
+        RefreshType current_refresh = refresh_type.load();
+        if (current_refresh != NO_REFRESH) {
+            if (current_refresh == FULL_REFRESH) {
+                fullRefresh();
+            }
+            if (current_refresh == SOFT_REFRESH) {
+                softRefresh();
+            }
+        }
+
+        delay(20); // 20ms delay
     }
 
-    void updateDisplay() {
+    /**
+     * @brief Perform a full refresh of the display by clearing the screen four times
+     */
+    void fullRefresh() {
+        LOG_D("Full refreshing display");
+        full_refresh();
         ApiResponse_t response = getPage();
         if (updateDisplayFromResponse(response)) {
             drawDisplay();
-            refresh_display = false;
+            refresh_type.store(NO_REFRESH);
             last_update_time = millis();
         }
     }
 
+    /**
+     * @brief Perform a soft refresh of the display by clearing the framebuffer and drawing/rendering the page over existing
+     */
+    void softRefresh() {
+        LOG_D("Soft refreshing display");
+        set_background(framebuffer);
+        ApiResponse_t response = getPage();
+        if (updateDisplayFromResponse(response)) {
+            drawDisplay();
+            refresh_type.store(NO_REFRESH);
+            last_update_time = millis();
+        }
+    }
+
+    /**
+     * @brief Draw the display by drawing the framebuffer to the epd
+     */
     void drawDisplay() {
         epd_poweron();
         epd_draw_grayscale_image(epd_full_screen(), framebuffer);
         epd_poweroff();
     }
 
-    void requestRefresh() {
-        refresh_display = true;
-    }
 #pragma endregion
 };
 

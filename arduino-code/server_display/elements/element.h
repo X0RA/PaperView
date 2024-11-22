@@ -155,7 +155,7 @@ public:
             }
         }
 
-        clear_area(clearArea, framebuffer);
+        clear_framebuffer_area(clearArea, framebuffer);
 
         LOG_D("Cleared text area for ID %d at (%d,%d,%d,%d)",
               id,

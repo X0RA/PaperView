@@ -18,6 +18,24 @@ private:
     size_t elementCount;
     uint8_t *framebuffer;
 
+    // Add new task handle
+    TaskHandle_t touchResponseTaskHandle;
+
+    // Add struct to pass data to task
+    struct TouchData {
+        DrawElement *element;
+        uint8_t *framebuffer;
+    };
+
+    // Add static wrapper for the task
+    static void touchResponseTaskWrapper(void *parameter) {
+        TouchData *data = (TouchData *)parameter;
+        data->element->setTouched(true);
+        data->element->executeCallback(data->framebuffer);
+        delete data;
+        vTaskDelete(NULL);
+    }
+
 public:
     ElementManager(uint8_t *fb) {
         elementCount = 0;
@@ -27,6 +45,22 @@ public:
 
     ~ElementManager() {
         clearElements();
+    }
+
+    /**
+     * @brief Render the touched elements to the framebuffer
+     * @return Whether any elements were touched
+     */
+    bool renderTouched() {
+        bool elementsTouched = false;
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i] && elements[i]->isTouched()) {
+                elements[i]->drawTouched(framebuffer);
+                elements[i]->setTouched(false);
+                elementsTouched = true;
+            }
+        }
+        return elementsTouched;
     }
 
     void processElements(JsonArray &jsonElements) {
@@ -123,7 +157,8 @@ private:
         }
     }
 
-    void clearElements() {
+    void clearElements() { // NOTE: returned bool will refresh display if true
+
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
             if (elements[i]) {
                 delete elements[i];
@@ -175,31 +210,29 @@ public:
         return nullptr;
     }
 
-    // Method to handle touch events if needed
-    // NOTE: returned bool will refresh display if true
+    // Method to handle touch events
     bool handleTouch(int16_t x, int16_t y) {
         for (int i = MAX_ELEMENTS - 1; i >= 0; i--) {
-            if (elements[i]) {
+            if (elements[i] && elements[i]->isPointInside(x, y)) {
+                Serial.printf("Button %d touched\n", elements[i]->getId());
 
-                if (elements[i] && elements[i]->isPointInside(x, y)) {
-                    Serial.printf("Button %d touched\n", elements[i]->getId());
-                    epd_poweron();
+                // Create data structure for task
+                TouchData *data = new TouchData{elements[i], framebuffer};
 
-                    elements[i]->setTouched(true);
-                    elements[i]->drawTouched(framebuffer);
-                    bool callback_success = elements[i]->executeCallback(framebuffer);
-                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
+                // Create new task for handling touch response and return immediately
+                BaseType_t taskCreated = xTaskCreate(
+                    touchResponseTaskWrapper,
+                    "TouchResponse",
+                    4096,
+                    data,
+                    1,
+                    &touchResponseTaskHandle);
 
-                    delay(100); // 100ms delay to show touch state
+                LOG_D("Touch response task %s", taskCreated == pdPASS ? "created successfully" : "failed to create");
 
-                    // Reset touch state
-                    elements[i]->setTouched(false);
-                    elements[i]->draw(framebuffer);
-                    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
-
-                    epd_poweroff();
-                    return true;
-                }
+                // Return true regardless of whether task creation succeeded
+                // This ensures the display refresh happens immediately
+                return true;
             }
         }
         return false;

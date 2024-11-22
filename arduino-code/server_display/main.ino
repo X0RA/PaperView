@@ -25,7 +25,7 @@
 #include "utils/wifi.h"
 #include "utils/layout.h"
 #include "utils/eink.h"
-
+#include "utils/http.h"
 // controllers
 #include "controllers/application_controller.h"
 
@@ -36,7 +36,7 @@ TouchDrvGT911 touch;
 std::unique_ptr<uint8_t[]> framebuffer;
 
 // application controller
-ApplicationController* app;
+ApplicationController *app;
 
 #pragma region Setup Functions
 void setupFramebuffer() {
@@ -125,15 +125,17 @@ void setupWiFi() {
 #pragma endregion
 void setup() {
     Serial.begin(115200);
-    while (!Serial) {
-        delay(10);
-    }
+    // This code would wait for a serial connection before continuing,
+    // comment out to allow the device to run without being connected to a computer
+    // while (!Serial) {
+    //     delay(10);
+    // }
     epd_init();
     setupFramebuffer();
     setupTouch();
     setupWiFi();
     setupSD();
-    deep_refresh();
+    full_refresh();
     delay(500);
     app = new ApplicationController(framebuffer.get(), touch);
 }

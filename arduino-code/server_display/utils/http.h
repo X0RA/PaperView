@@ -24,16 +24,69 @@ ApiResponse_t makeGetRequest(const char *url) {
     LOG_I("Making GET request to: %s", url);
 
     http.begin(url);
+    http.setTimeout(API_TIMEOUT_MS);
+
     response.httpCode = http.GET();
+    if (response.httpCode <= 0) {
+        String errorMsg;
+        switch (response.httpCode) {
+        case HTTPC_ERROR_CONNECTION_REFUSED:
+            errorMsg = "Connection refused - Check if server is running";
+            break;
+        case HTTPC_ERROR_SEND_HEADER_FAILED:
+            errorMsg = "Send header failed";
+            break;
+        case HTTPC_ERROR_SEND_PAYLOAD_FAILED:
+            errorMsg = "Send payload failed";
+            break;
+        case HTTPC_ERROR_NOT_CONNECTED:
+            errorMsg = "Not connected";
+            break;
+        case HTTPC_ERROR_CONNECTION_LOST:
+            errorMsg = "Connection lost";
+            break;
+        case HTTPC_ERROR_READ_TIMEOUT:
+            errorMsg = "Read Timeout";
+            break;
+        default:
+            errorMsg = http.errorToString(response.httpCode);
+        }
+        LOG_E("Connection failed: %s (code: %d)", errorMsg.c_str(), response.httpCode);
+        http.end();
+        return response;
+    }
 
     if (response.httpCode > 0) {
         LOG_D("HTTP GET Response code: %d", response.httpCode);
         if (response.httpCode == HTTP_CODE_OK) {
             response.success = true;
             response.response = http.getString();
+        } else {
+            // Log specific HTTP error codes
+            switch (response.httpCode) {
+            case HTTP_CODE_NOT_FOUND:
+                LOG_E("Resource not found (404)");
+                break;
+            case HTTP_CODE_UNAUTHORIZED:
+                LOG_E("Unauthorized access (401)");
+                break;
+            case HTTP_CODE_FORBIDDEN:
+                LOG_E("Access forbidden (403)");
+                break;
+            case HTTP_CODE_BAD_REQUEST:
+                LOG_E("Bad request (400)");
+                break;
+            case HTTP_CODE_INTERNAL_SERVER_ERROR:
+                LOG_E("Server error (500)");
+                break;
+            default:
+                LOG_E("HTTP error code: %d", response.httpCode);
+            }
         }
     } else {
-        LOG_E("Error sending GET: %d", response.httpCode);
+        // Log connection errors
+        String error = http.errorToString(response.httpCode);
+        LOG_E("Connection failed: %s (code: %d)", error.c_str(), response.httpCode);
     }
 
     http.end();

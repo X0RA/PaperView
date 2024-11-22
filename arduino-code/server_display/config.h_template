@@ -9,7 +9,7 @@
 #define WIFI_MAX_ATTEMPTS 20
 
 // API Configuration
-#define BASE_URL "http://ip_address:5000"
+#define BASE_URL "http://api_url" # no trailing /
 #define API_TIMEOUT_MS 5000
 #define MAX_JSON_SIZE 8192
 
@@ -31,19 +31,19 @@
 
 // Debug macros with different levels
 #if DEBUG_LEVEL >= LOG_ERROR
-#define LOG_E(msg, ...) Serial.printf("[ERROR] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_E(msg, ...) Serial.printf("\033[31m[ERROR] %s: " msg "\033[0m\n", __func__, ##__VA_ARGS__)
 #else
 #define LOG_E(msg, ...)
 #endif
 
 #if DEBUG_LEVEL >= LOG_INFO
-#define LOG_I(msg, ...) Serial.printf("[INFO] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_I(msg, ...) Serial.printf("\033[32m[ INFO] %s: " msg "\033[0m\n", __func__, ##__VA_ARGS__)
 #else
 #define LOG_I(msg, ...)
 #endif
 
 #if DEBUG_LEVEL >= LOG_DEBUG
-#define LOG_D(msg, ...) Serial.printf("[DEBUG] %s: " msg "\n", __func__, ##__VA_ARGS__)
+#define LOG_D(msg, ...) Serial.printf("\033[36m[DEBUG] %s: " msg "\033[0m\n", __func__, ##__VA_ARGS__)
 #else
 #define LOG_D(msg, ...)
 #endif
@@ -54,5 +54,10 @@
 
 // Page Refresh Configuration
 #define AUTO_UPDATE_INTERVAL 30000 // ms
+
+// Image Configuration
+#define DEFAULT_IMAGE_WIDTH 128
+#define DEFAULT_IMAGE_HEIGHT 128
+#define IMAGE_SD_PATH "/images"
 
 #endif // GLOBAL_CONFIG_H

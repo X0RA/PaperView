@@ -85,6 +85,7 @@ def serial_reader(port, paused_event, stop_event):
 def key_listener(paused_event, stop_event):
     """
     Listens for 'P' key presses to pause and resume the serial reader.
+    Also handles 'Enter' key presses to insert new lines in the terminal.
     """
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -107,6 +108,12 @@ def key_listener(paused_event, stop_event):
                     elif ch.lower() == 'q':
                         stop_event.set()
                         print('Exiting...')
+                    elif ch.lower() == 'c':
+                        # Clear terminal screen
+                        print('\033[2J\033[H')
+                    elif ch == '\r' or ch == '\n':
+                        # Insert a new line when Enter is pressed
+                        print()
     except Exception as e:
         print(f'Key listener error: {e}')
     finally:

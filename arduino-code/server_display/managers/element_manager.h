@@ -63,8 +63,10 @@ public:
         return elementsTouched;
     }
 
-    void processElements(JsonArray &jsonElements) {
+    bool processElements(JsonArray &jsonElements) {
         LOG_I("Processing %d elements", jsonElements.size());
+
+        bool elementsChanged = false;
 
         // Mark all existing elements as not updated
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
@@ -89,7 +91,7 @@ public:
             }
 
             if (newElement && newElement->updateFromJson(element)) {
-                updateElement(newElement);
+                elementsChanged |= updateElement(newElement);
             } else {
                 LOG_E("Failed to create or update element of type: %s", type);
                 delete newElement;
@@ -99,9 +101,13 @@ public:
         // Remove elements that weren't updated
         removeUnusedElements();
 
-        // Redraw all active elements
-        LOG_D("Redrawing all active elements");
-        redrawElements();
+        // Redraw all active elements if there were changes
+        if (elementsChanged) {
+            LOG_D("Redrawing all active elements");
+            redrawElements();
+        }
+
+        return elementsChanged;
     }
 
 private:
@@ -168,7 +174,11 @@ private:
         elementCount = 0;
     }
 
-    void updateElement(DrawElement *newElement) {
+    /**
+     * @brief Update an element if it exists and is different
+     * @return Whether the element was updated
+     */
+    bool updateElement(DrawElement *newElement) {
         // Find existing element with same ID
         DrawElement *existing = findElementById(newElement->getId());
 
@@ -182,16 +192,18 @@ private:
                         delete existing;
                         elements[i] = newElement;
                         newElement->draw(framebuffer); // Need to update this to just calculate the bounds as to not redraw on the screen which can cause issues
-                        return;
+                        return true;
                     }
                 }
             } else {
                 existing->setUpdated(true);
                 delete newElement;
+                return false;
             }
         } else {
-            storeElement(newElement);
+            return storeElement(newElement);
         }
+        return false;
     }
 
 public:

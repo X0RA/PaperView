@@ -7,11 +7,13 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "../utils/http.h"
+#include "../utils/types.h"
 
 enum class ElementType {
     TEXT,
     BUTTON,
-    IMAGE
+    IMAGE,
+    ICON
 };
 
 enum class Anchor {
@@ -39,10 +41,11 @@ protected:
     Anchor anchor;             // The anchor of the element
     FontProperties font_props; // The properties of the font
     Rect_t bounds;             // The bounds of the element
-    bool active;               // Whether the element is active
-    bool changed;              // Whether the element has changed
-    bool updated;              // Whether the element has been updated
-    bool touched;              // Whether the element has been touched
+    bool active;               // Indicates if the element is currently part of the display
+    bool changed;              // Indicates if the element's visual properties have changed
+    bool updated;              // Indicates if the element was processed in current update cycle
+    bool touched;              // Indicates if the element was touched in current update cycle
+    RefreshType refresh_type;  // The type of refresh to perform
 #pragma endregion
 
     static Anchor getAnchorFromString(const char *anchor) {
@@ -114,16 +117,37 @@ public:
      * @brief Clear the area of the element
      * @param framebuffer The framebuffer to clear
      */
-    virtual void clearArea(uint8_t *framebuffer) {
+    virtual void clearArea(uint8_t *framebuffer, bool framebufferOnly = false) {
         LOG_D("Clearing element with id %d", id);
-        const int32_t padding_x = 8;
-        int32_t padding_y = 6;
-        const char tallerChars[5] = {'g', 'j', 'p', 'q', 'y'};
-        for (int i = 0; i < 5; i++) {
-            if (strchr(text, tallerChars[i]) != NULL) {
-                padding_y += 3;
-                break;
+        int32_t padding_x = 0;
+        int32_t padding_y = 0;
+
+        // If the element is a text element, we need to add extra padding for taller characters
+        if (type == ElementType::TEXT) {
+            padding_x = 8;
+            padding_y = 6;
+            const char tallerChars[5] = {'g', 'j', 'p', 'q', 'y'};
+            for (int i = 0; i < 5; i++) {
+                if (strchr(text, tallerChars[i]) != NULL) {
+                    padding_y += 3;
+                    break;
+                }
             }
+        }
+
+        if (type == ElementType::IMAGE) {
+            padding_x = 9;
+            padding_y = 9;
+        }
+
+        if (type == ElementType::ICON) {
+            padding_x = 5;
+            padding_y = 5;
+        }
+
+        if (type == ElementType::BUTTON) {
+            padding_x = 8;
+            padding_y = 8;
         }
 
         Rect_t clearArea = {
@@ -143,19 +167,34 @@ public:
         if (clearArea.y >= EPD_HEIGHT)
             clearArea.y = EPD_HEIGHT;
 
-        int16_t cycles = 1;
-        int16_t time = 50;
+        // Default refresh type is 2 cycles (fast refresh)
+        int32_t cycles = 2;
+        int16_t white_time = 50;
+        int16_t dark_time = 50;
 
-        for (int32_t c = 0; c < cycles; c++) {
-            for (int32_t i = 0; i < 4; i++) {
-                epd_push_pixels(clearArea, time, 0);
-            }
-            for (int32_t i = 0; i < 4; i++) {
-                epd_push_pixels(clearArea, time, 1);
-            }
+        if (refresh_type == RefreshType::FAST_REFRESH) {
+            cycles = 1;
+            white_time = 50;
+            dark_time = 50;
         }
 
+        // This is the default so no need to list
+        // if (refresh_type == RefreshType::SOFT_REFRESH)
+
+        if (refresh_type == RefreshType::FULL_REFRESH) {
+            cycles = 4;
+        }
+
+        // clear the framebuffer
         clear_framebuffer_area(clearArea, framebuffer);
+
+        if (framebufferOnly) {
+            LOG_D("Cleared framebuffer for element id %d", id);
+            return;
+        }
+
+        // clear the display
+        clear_area(clearArea, framebuffer, cycles, white_time, dark_time);
 
         LOG_D("Cleared text area for ID %d at (%d,%d,%d,%d)",
               id,

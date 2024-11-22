@@ -5,7 +5,7 @@
 #include "../managers/element_manager.h"
 #include "../utils/eink.h"
 #include "../utils/http.h"
-#include "../utils/server.h"
+// #include "../utils/server.h" // NOTE: comment in for web server
 #include "../utils/storage.h"
 #include "../utils/types.h"
 #include "epd_driver.h"
@@ -24,8 +24,8 @@ class ApplicationController {
 private:
 #pragma region Properties
     uint8_t *const framebuffer;
-    ElementManager elements;
-    DisplayWebServer webServer;
+    ElementManager elementManager;
+    // DisplayWebServer webServer; // NOTE: comment in for web server
 
     // Touch
     TouchDrvGT911 &touch;
@@ -54,7 +54,7 @@ private:
                 if (!touch_active &&
                     (current_time - last_touch_time >= TOUCH_DEBOUNCE_TIME)) {
                     LOG_D("Touch at X:%d Y:%d", x, y);
-                    if (elements.handleTouch(x, y)) {
+                    if (elementManager.handleTouch(x, y)) {
                         refresh_type.store(SOFT_REFRESH);
                     }
                     last_touch_time = current_time;
@@ -65,7 +65,7 @@ private:
             }
 
             // Increased delay to give more time to other tasks
-            vTaskDelay(pdMS_TO_TICKS(50));
+            vTaskDelay(pdMS_TO_TICKS(30));
         }
     }
 
@@ -111,7 +111,7 @@ private:
             return false;
         }
 
-        elements.processElements(elements_data);
+        elementManager.processElements(elements_data);
         return true;
     }
 #pragma endregion
@@ -123,8 +123,8 @@ public:
                                                                         last_touch_time(0),
                                                                         last_update_time(0),
                                                                         touch(touch),
-                                                                        elements(framebuffer),
-                                                                        webServer(&refresh_type),
+                                                                        elementManager(framebuffer),
+                                                                        // webServer(&refresh_type), // NOTE: comment in for web server
                                                                         touchTaskHandle(NULL) {
         // Create the touch handling thread
         xTaskCreate(
@@ -158,7 +158,7 @@ public:
         checkAutoUpdate();
 
         // Render touched elements
-        if (elements.renderTouched()) {
+        if (elementManager.renderTouched()) {
             drawDisplay();
         }
 

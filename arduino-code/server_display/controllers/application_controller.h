@@ -45,6 +45,9 @@ private:
     void touchTask() {
         int16_t x, y;
         while (true) {
+            // Reset watchdog timer
+            esp_task_wdt_reset();
+
             unsigned long current_time = millis();
 
             if (touch.getPoint(&x, &y)) {
@@ -61,7 +64,8 @@ private:
                 touch_active = false;
             }
 
-            vTaskDelay(pdMS_TO_TICKS(10)); // Small delay to prevent task from hogging CPU (20ms)
+            // Increased delay to give more time to other tasks
+            vTaskDelay(pdMS_TO_TICKS(50));
         }
     }
 
@@ -126,11 +130,14 @@ public:
         xTaskCreate(
             touchTaskWrapper, // Task function
             "TouchTask",      // Task name
-            4096,             // Stack size (bytes)
+            8192,             // Stack size (bytes) - increased from 4096
             this,             // Task parameters
             1,                // Priority
             &touchTaskHandle  // Task handle
         );
+
+        // Enable watchdog for touch task
+        esp_task_wdt_add(touchTaskHandle);
     };
 
     ~ApplicationController() {

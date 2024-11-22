@@ -4,13 +4,66 @@
 #include "element.h"
 
 class TextElement : public DrawElement {
+private:
+    int32_t cursor_x;
+    int32_t cursor_y;
 
 public:
-    TextElement() : DrawElement() {
+    TextElement() : DrawElement(), cursor_x(0), cursor_y(0) {
         type = ElementType::TEXT;
     }
 
     void draw(uint8_t *framebuffer) override {
+        if (!text)
+            return;
+
+        write_mode((GFXfont *)&FiraSans, text,
+                   &cursor_x, &cursor_y,
+                   framebuffer,
+                   BLACK_ON_WHITE,
+                   &font_props);
+
+        active = true;
+        changed = false;
+        updated = false;
+    }
+
+    bool updateFromJson(JsonObject &element) override {
+        if (strcmp(element["type"] | "", "text") != 0)
+            return false;
+
+        const char *textContent = element["text"] | "";
+        if (strlen(textContent) == 0)
+            return false;
+
+        id = element["id"].as<uint16_t>();
+        text = strdup(textContent);
+        x = element["x"].as<int16_t>();
+        y = element["y"].as<int16_t>();
+        anchor = getAnchorFromString(element["anchor"] | "bl");
+        font_props = get_text_properties(element["level"].as<uint8_t>());
+        active = true;
+        changed = true;
+        updated = true;
+
+        return true;
+    }
+
+    void drawTouched(uint8_t *framebuffer) override {
+        LOG_D("Drawing touched text element id=%d", id);
+
+        // First draw the text normally
+        draw(framebuffer);
+
+        // Draw a line through the middle of the text using the stored bounds
+        int32_t line_y = bounds.y + (bounds.height / 2);
+
+        epd_draw_line(bounds.x, line_y,
+                      bounds.x + bounds.width, line_y,
+                      BLACK_ON_WHITE, framebuffer);
+    }
+
+    void calculateProperties() override {
         if (!text)
             return;
 
@@ -22,8 +75,8 @@ public:
                         &temp_x, &temp_y,
                         &x1, &y1, &w, &h, NULL);
 
-        int32_t cursor_x = x;
-        int32_t cursor_y = y;
+        cursor_x = x;
+        cursor_y = y;
 
         switch (anchor) {
         case Anchor::TOP_LEFT:
@@ -63,54 +116,6 @@ public:
             .y = max(0, min(EPD_HEIGHT - 1, text_top)),
             .width = min(w, EPD_WIDTH - bounds.x),
             .height = min(h, EPD_HEIGHT - bounds.y)};
-
-        write_mode((GFXfont *)&FiraSans, text,
-                   &cursor_x, &cursor_y,
-                   framebuffer,
-                   BLACK_ON_WHITE,
-                   &font_props);
-
-        active = true;
-    }
-
-    bool updateFromJson(JsonObject &element) override {
-        if (strcmp(element["type"] | "", "text") != 0)
-            return false;
-
-        const char *textContent = element["text"] | "";
-        if (strlen(textContent) == 0)
-            return false;
-
-        id = element["id"].as<uint16_t>();
-        text = strdup(textContent);
-        x = element["x"].as<int16_t>();
-        y = element["y"].as<int16_t>();
-        anchor = getAnchorFromString(element["anchor"] | "bl");
-        font_props = get_text_properties(element["level"].as<uint8_t>());
-        active = true;
-        changed = true;
-        updated = true;
-
-        return true;
-    }
-
-    void drawTouched(uint8_t *framebuffer) override {
-        LOG_D("Drawing touched text element id=%d", id);
-
-        // First draw the text normally
-        draw(framebuffer);
-
-        // Draw a line through the middle of the text using the stored bounds
-        int32_t line_y = bounds.y + (bounds.height / 2);
-
-        epd_draw_line(bounds.x, line_y,
-                      bounds.x + bounds.width, line_y,
-                      BLACK_ON_WHITE, framebuffer);
-    }
-
-    void updateElement() override {
-        // TODO: Implement
-        return;
     }
 };
 

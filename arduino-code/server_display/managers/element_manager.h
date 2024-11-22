@@ -63,15 +63,23 @@ public:
         return elementsTouched;
     }
 
-    void processElements(JsonArray &jsonElements) {
+    /**
+     * @brief Process the elements from the JSON
+     * @param jsonElements The JSON array of elements
+     * @return Whether the display needs to be refreshed
+     */
+    bool processElements(JsonArray &jsonElements) {
         LOG_I("Processing %d elements", jsonElements.size());
 
-        // Mark all existing elements as not updated
+        // Reset updated flag for all elements at start of update cycle
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
             if (elements[i]) {
+                elements[i]->setActive(false);
                 elements[i]->setUpdated(false);
             }
         }
+
+        bool refreshDisplay = false;
 
         // Process new elements
         for (JsonObject element : jsonElements) {
@@ -89,14 +97,14 @@ public:
             }
 
             if (newElement && newElement->updateFromJson(element)) {
-                updateElement(newElement);
+                refreshDisplay |= updateElement(newElement);
             } else {
-                LOG_E("Failed to create or update element of type: %s", type);
+                LOG_E("Element from JSON was not updated: %s", type);
                 delete newElement;
             }
         }
 
-        // Remove elements that weren't updated
+        // Remove unused elements
         removeUnusedElements();
 
         // Redraw all active elements
@@ -143,7 +151,7 @@ private:
 
     void removeUnusedElements() {
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
-            if (elements[i] && !elements[i]->isUpdated()) {
+            if (elements[i] && !elements[i]->isActive()) {
                 removeElement(i);
             }
         }
@@ -157,7 +165,8 @@ private:
         }
     }
 
-    void clearElements() { // NOTE: returned bool will refresh display if true
+    // NOTE: returned bool will refresh display if true
+    void clearElements() {
 
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
             if (elements[i]) {
@@ -168,30 +177,57 @@ private:
         elementCount = 0;
     }
 
-    void updateElement(DrawElement *newElement) {
+    /**
+     * @brief Update an element (checks )
+     * @param newElement The new element to update
+     * @return Boolean indicating whether the element was updated
+     */
+    bool updateElement(DrawElement *newElement) {
         // Find existing element with same ID
         DrawElement *existing = findElementById(newElement->getId());
 
         if (existing) {
+            // Check if the existing element needs to be updated
             if (!existing->isEqual(*newElement)) {
                 LOG_D("Updating element %d", existing->getId());
-                // Find index of existing element
+
+                // Find index of existing element and update it
                 for (size_t i = 0; i < MAX_ELEMENTS; i++) {
                     if (elements[i]->getId() == existing->getId()) {
-                        existing->clearArea(framebuffer);
+                        // Clear the old element from the display
+                        existing->clearArea(framebuffer, true);
                         delete existing;
+
+                        // Replace with new element
                         elements[i] = newElement;
-                        newElement->draw(framebuffer); // Need to update this to just calculate the bounds as to not redraw on the screen which can cause issues
-                        return;
+                        newElement->setActive(true);
+                        newElement->setUpdated(true);
+                        newElement->setChanged(true);
+
+                        // Calculate properties
+                        newElement->calculateProperties();
+
+                        // Return true to trigger display refresh
+                        return true;
                     }
                 }
+                // element is equal
             } else {
+                existing->setActive(true);
                 existing->setUpdated(true);
+                existing->setChanged(false);
                 delete newElement;
             }
         } else {
+            // This is a new element, store it
+            newElement->setActive(true);
+            newElement->setUpdated(true);
+            newElement->setChanged(true);
             storeElement(newElement);
         }
+
+        // Return false if no refresh needed
+        return false;
     }
 
 public:
@@ -203,6 +239,11 @@ public:
         return elementCount >= MAX_ELEMENTS;
     }
 
+    /**
+     * @brief Get an element by index
+     * @param index The index of the element
+     * @return The element at the index or nullptr if the index is out of bounds
+     */
     DrawElement *getElement(size_t index) {
         if (index < MAX_ELEMENTS) {
             return elements[index];
@@ -210,7 +251,12 @@ public:
         return nullptr;
     }
 
-    // Method to handle touch events
+    /**
+     * @brief Handle touch events
+     * @param x The x coordinate of the touch
+     * @param y The y coordinate of the touch
+     * @return Whether a touch was detected
+     */
     bool handleTouch(int16_t x, int16_t y) {
         for (int i = MAX_ELEMENTS - 1; i >= 0; i--) {
             if (elements[i] && elements[i]->isPointInside(x, y)) {

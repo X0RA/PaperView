@@ -223,25 +223,6 @@ public:
         return;
     }
 
-    /**
-     * @brief Clear the area of the image
-     */
-    void clearArea(uint8_t *framebuffer) override {
-        int16_t cycles = 1;
-        int16_t time = 50;
-
-        for (int32_t c = 0; c < cycles; c++) {
-            for (int32_t i = 0; i < 4; i++) {
-                epd_push_pixels(bounds, time, 0);
-            }
-            for (int32_t i = 0; i < 4; i++) {
-                epd_push_pixels(bounds, time, 1);
-            }
-        }
-
-        clear_framebuffer_area(bounds, framebuffer);
-    }
-
     // TODO: Implement touch effect for image / icon
     // Maybe get image from SD if exists and turn the non background color pixels to grey
     void drawTouched(uint8_t *framebuffer) override {

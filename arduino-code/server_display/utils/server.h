@@ -36,18 +36,25 @@ public:
                                                               serverTaskHandle(NULL) {
         LOG_I("Initializing DisplayWebServer on port 80");
 
-        server.on("/full_refresh", HTTP_GET, [this]() {
-            LOG_D("Received GET request to /full_refresh");
-            refreshRequested->store(FULL_REFRESH);
-            server.send(200, "text/plain", "Full refresh requested");
-            LOG_D("Full refresh request processed successfully");
+        server.on("/complete_refresh", HTTP_GET, [this]() {
+            LOG_D("Received GET request to /complete_refresh");
+            refreshRequested->store(DISPLAY_REFRESH_COMPLETE);
+            server.send(200, "text/plain", "Complete refresh requested");
+            LOG_D("Complete refresh request processed successfully");
         });
 
-        server.on("/soft_refresh", HTTP_GET, [this]() {
-            LOG_D("Received GET request to /soft_refresh");
-            refreshRequested->store(SOFT_REFRESH);
-            server.send(200, "text/plain", "Soft refresh requested");
-            LOG_D("Soft refresh request processed successfully");
+        server.on("/partial_refresh", HTTP_GET, [this]() {
+            LOG_D("Received GET request to /partial_refresh");
+            refreshRequested->store(DISPLAY_REFRESH_PARTIAL);
+            server.send(200, "text/plain", "Partial refresh requested");
+            LOG_D("Partial refresh request processed successfully");
+        });
+
+        server.on("/fast_refresh", HTTP_GET, [this]() {
+            LOG_D("Received GET request to /fast_refresh");
+            refreshRequested->store(DISPLAY_REFRESH_FAST);
+            server.send(200, "text/plain", "Fast refresh requested");
+            LOG_D("Fast refresh request processed successfully");
         });
 
         // Create the server handling thread

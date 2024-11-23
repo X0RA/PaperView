@@ -26,6 +26,7 @@
 #include "utils/layout.h"
 #include "utils/eink.h"
 #include "utils/http.h"
+#include "utils/types.h"
 // controllers
 #include "controllers/application_controller.h"
 
@@ -33,12 +34,14 @@
 TouchDrvGT911 touch;
 
 // screen buffer
-std::unique_ptr<uint8_t[]> framebuffer;
 
 // application controller
 ApplicationController *app;
 
 #pragma region Setup Functions
+
+// New framebuffer initialization
+std::unique_ptr<uint8_t[]> framebuffer;
 void setupFramebuffer() {
     framebuffer = std::unique_ptr<uint8_t[]>(new uint8_t[EPD_WIDTH * EPD_HEIGHT / 2]);
     if (!framebuffer) {
@@ -49,6 +52,17 @@ void setupFramebuffer() {
     memset(framebuffer.get(), 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
     LOG_I("Framebuffer initialized successfully");
 }
+
+// // old method for framebuffer
+// uint8_t *framebuffer = NULL;
+// void setupFramebuffer() {
+//     framebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), EPD_WIDTH * EPD_HEIGHT / 2);
+//     if (!framebuffer) {
+//         LOG_E("Failed to allocate framebuffer memory");
+//         while (1);
+//     }
+//     memset(framebuffer, 0xFF, EPD_WIDTH * EPD_HEIGHT / 2);
+// }
 
 void setupTouch() {
     //* Sleep wakeup must wait one second, otherwise the touch device cannot be
@@ -135,9 +149,8 @@ void setup() {
     setupTouch();
     setupWiFi();
     setupSD();
-    full_refresh();
-    delay(500);
     app = new ApplicationController(framebuffer.get(), touch);
+    LOG_I("Initialized successfully");
 }
 
 void loop() {

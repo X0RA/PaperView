@@ -2,10 +2,14 @@
 #define TYPES_H
 
 enum RefreshType {
-    NO_REFRESH,   // No refresh
-    FAST_REFRESH, // Fast refresh - 1 cycle refresh
-    SOFT_REFRESH, // Partial refresh - 2 cycles refresh
-    FULL_REFRESH  // Complete refresh - 4 cycles refresh
+    NO_REFRESH,               // No refresh (default)
+    REFETCH_ELEMENTS,         // Refresh the elements
+    ELEMENT_REFRESH_FAST,     // Fast refresh - Flash background color on area before drawing
+    ELEMENT_REFRESH_PARTIAL,  // Partial refresh - 2 cycle black to white flash on area before drawing
+    ELEMENT_REFRESH_COMPLETE, // Complete refresh - 4 cycles black to white flash on area before drawing
+    DISPLAY_REFRESH_FAST,     // Fast refresh - Flash background color on area before drawing
+    DISPLAY_REFRESH_PARTIAL,  // Partial refresh - 2 cycle black to white flash on entire display
+    DISPLAY_REFRESH_COMPLETE  // Complete refresh - 4 cycles black to white flash on entire display
 };
 
 #endif // TYPES_H

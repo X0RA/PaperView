@@ -18,16 +18,13 @@ private:
     size_t elementCount;
     uint8_t *framebuffer;
 
-    // Add new task handle
     TaskHandle_t touchResponseTaskHandle;
 
-    // Add struct to pass data to task
     struct TouchData {
         DrawElement *element;
         uint8_t *framebuffer;
     };
 
-    // Add static wrapper for the task
     static void touchResponseTaskWrapper(void *parameter) {
         TouchData *data = (TouchData *)parameter;
         data->element->setTouched(true);
@@ -35,6 +32,15 @@ private:
         delete data;
         vTaskDelete(NULL);
     }
+
+    struct ElementUpdate {
+        DrawElement *element;
+        RefreshType refresh_type;
+        bool needs_clear;
+        bool needs_draw;
+    };
+
+    std::vector<ElementUpdate> update_queue;
 
 public:
     ElementManager(uint8_t *fb) {
@@ -140,7 +146,7 @@ private:
 
     void removeElement(size_t index) {
         if (elements[index]) {
-            elements[index]->clearArea(framebuffer);
+            queueElementUpdate(elements[index], ELEMENT_REFRESH_PARTIAL, true, false);
             delete elements[index];
             elements[index] = nullptr;
             elementCount--;
@@ -179,19 +185,22 @@ private:
      * @return Whether the element was updated
      */
     bool updateElement(DrawElement *newElement) {
-        // Find existing element with same ID
         DrawElement *existing = findElementById(newElement->getId());
 
         if (existing) {
             if (!existing->isEqual(*newElement)) {
                 LOG_D("Updating element %d", existing->getId());
-                // Find index of existing element
                 for (size_t i = 0; i < MAX_ELEMENTS; i++) {
                     if (elements[i]->getId() == existing->getId()) {
-                        existing->clearArea(framebuffer);
+                        // Queue the clear operation with appropriate refresh type
+                        queueElementUpdate(existing, ELEMENT_REFRESH_PARTIAL, true, false);
+
+                        // Replace the element
                         delete existing;
                         elements[i] = newElement;
-                        newElement->draw(framebuffer); // Need to update this to just calculate the bounds as to not redraw on the screen which can cause issues
+
+                        // Queue the draw operation
+                        queueElementUpdate(newElement, NO_REFRESH, false, true);
                         return true;
                     }
                 }
@@ -201,9 +210,20 @@ private:
                 return false;
             }
         } else {
-            return storeElement(newElement);
+            if (storeElement(newElement)) {
+                // Queue new element draw
+                queueElementUpdate(newElement, ELEMENT_REFRESH_FAST, false, true);
+                return true;
+            }
         }
         return false;
+    }
+
+    void queueElementUpdate(DrawElement *element, RefreshType refresh_type, bool needs_clear = true, bool needs_draw = true) {
+        update_queue.push_back({.element = element,
+                                .refresh_type = refresh_type,
+                                .needs_clear = needs_clear,
+                                .needs_draw = needs_draw});
     }
 
 public:
@@ -228,7 +248,6 @@ public:
             if (elements[i] && elements[i]->isPointInside(x, y)) {
                 Serial.printf("Button %d touched\n", elements[i]->getId());
 
-                // Create data structure for task
                 TouchData *data = new TouchData{elements[i], framebuffer};
 
                 // Create new task for handling touch response and return immediately
@@ -248,6 +267,31 @@ public:
             }
         }
         return false;
+    }
+
+    void loop() {
+        // Process any queued element updates
+        if (!update_queue.empty()) {
+            auto update = update_queue.front();
+            update_queue.erase(update_queue.begin());
+
+            if (update.needs_clear) {
+                update.element->setRefreshType(update.refresh_type);
+                update.element->clearArea(framebuffer);
+            }
+
+            if (update.needs_draw) {
+                update.element->draw(framebuffer);
+            }
+        }
+
+        // Process any touched elements
+        for (size_t i = 0; i < MAX_ELEMENTS; i++) {
+            if (elements[i] && elements[i]->isTouched()) {
+                elements[i]->drawTouched(framebuffer);
+                elements[i]->setTouched(false);
+            }
+        }
     }
 };
 

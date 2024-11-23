@@ -45,7 +45,7 @@ protected:
     bool changed;              // Indicates if the element's visual properties have changed
     bool updated;              // Indicates if the element was processed in current update cycle
     bool touched;              // Indicates if the element was touched in current update cycle
-    RefreshType refresh_type;  // The type of refresh to perform
+    RefreshType refresh_type;  // Current type of refresh to perform on the element
 #pragma endregion
 
     static Anchor getAnchorFromString(const char *anchor) {
@@ -167,12 +167,12 @@ public:
         if (clearArea.y >= EPD_HEIGHT)
             clearArea.y = EPD_HEIGHT;
 
-        // Default refresh type is 2 cycles (fast refresh)
+        // Default refresh type is 2 cycles (ELEMENT_REFRESH_PARTIAL)
         int32_t cycles = 2;
         int16_t white_time = 50;
         int16_t dark_time = 50;
 
-        if (refresh_type == RefreshType::FAST_REFRESH) {
+        if (refresh_type == RefreshType::ELEMENT_REFRESH_FAST) {
             cycles = 1;
             white_time = 50;
             dark_time = 50;
@@ -181,7 +181,7 @@ public:
         // This is the default so no need to list
         // if (refresh_type == RefreshType::SOFT_REFRESH)
 
-        if (refresh_type == RefreshType::FULL_REFRESH) {
+        if (refresh_type == RefreshType::ELEMENT_REFRESH_COMPLETE) {
             cycles = 4;
         }
 
@@ -253,6 +253,7 @@ public:
     ElementType getType() const { return type; }
     String getText() const { return String(text); }
     uint16_t getId() const { return id; }
+    RefreshType getRefreshType() const { return refresh_type; }
     bool isActive() const { return active; }
     bool isUpdated() const { return updated; }
     bool isChanged() const { return changed; }
@@ -263,6 +264,7 @@ public:
     void setUpdated(bool value) { updated = value; }
     void setChanged(bool value) { changed = value; }
     void setTouched(bool value) { touched = value; }
+    void setRefreshType(RefreshType value) { refresh_type = value; }
     const Rect_t &getBounds() const { return bounds; }
 #pragma endregion
 };

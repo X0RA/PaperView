@@ -4,6 +4,8 @@
 #include "../config.h"
 #include "epd_driver.h"
 #include <Arduino.h>
+#include "types.h"
+
 // Display properties structure
 typedef struct
 {
@@ -98,16 +100,21 @@ void clear_framebuffer_area(Rect_t area, uint8_t *framebuffer) {
 /**
  * @brief Push pixels to a specific area of the display with a default 2 cycle refresh
  */
-void clear_area(Rect_t area, uint8_t *framebuffer, int32_t cycles = 2, int16_t white_time = 50, int16_t dark_time = 50) {
+void clear_area(Rect_t area, uint8_t *framebuffer, int32_t cycles = 2, int16_t bg_time = 50, int16_t fg_time = 50) {
     if (!framebuffer)
         return;
 
+    // NOTE: Ya wanna end on the background color
+
+    int32_t bg_color = current_display.background_color == 0 ? 0 : 1;
+    int32_t fg_color = bg_color == 0 ? 1 : 0;
+
     for (int32_t c = 0; c < cycles; c++) {
         for (int32_t i = 0; i < 4; i++) {
-            epd_push_pixels(area, dark_time, 0);
+            epd_push_pixels(area, fg_time, fg_color);
         }
         for (int32_t i = 0; i < 4; i++) {
-            epd_push_pixels(area, white_time, 1);
+            epd_push_pixels(area, bg_time, bg_color);
         }
     }
 }
@@ -156,13 +163,72 @@ void set_custom_display_mode(display_properties_t new_display) {
     current_display = new_display;
 }
 
+void refresh_display(RefreshType refresh_type, uint8_t *framebuffer) {
+    if (refresh_type == NO_REFRESH || refresh_type == REFETCH_ELEMENTS)
+        return;
+    if (!framebuffer)
+        return;
+
+    Rect_t full_screen = epd_full_screen();
+    switch (refresh_type) {
+    case DISPLAY_REFRESH_COMPLETE:
+        LOG_D("Display complete refresh");
+        clear_area(full_screen, framebuffer, 4, 50, 50);
+        break;
+    case DISPLAY_REFRESH_PARTIAL:
+        LOG_D("Display partial refresh");
+        clear_area(full_screen, framebuffer, 2, 50, 50);
+        break;
+    case DISPLAY_REFRESH_FAST:
+        LOG_D("Display fast refresh");
+        if (!framebuffer)
+            return;
+        int32_t bg_color = current_display.background_color == 0 ? 0 : 1;
+        epd_push_pixels(full_screen, 50, bg_color);
+        break;
+    }
+}
+
+void refresh_area(RefreshType refresh_type, uint8_t *framebuffer, Rect_t area) {
+    if (refresh_type == NO_REFRESH || refresh_type == REFETCH_ELEMENTS)
+        return;
+    if (!framebuffer)
+        return;
+
+    switch (refresh_type) {
+    case ELEMENT_REFRESH_COMPLETE:
+        LOG_D("Element complete refresh");
+        clear_area(area, framebuffer, 4, 50, 50);
+        break;
+    case ELEMENT_REFRESH_PARTIAL:
+        LOG_D("Element partial refresh");
+        clear_area(area, framebuffer, 2, 50, 50);
+        break;
+    case ELEMENT_REFRESH_FAST:
+        LOG_D("Element fast refresh");
+        if (!framebuffer)
+            return;
+        int32_t bg_color = current_display.background_color == 0 ? 0 : 1;
+        epd_push_pixels(area, 50, bg_color);
+        break;
+    }
+}
+
 /**
  * @brief Refresh the display by clearing and powering off (4 times)
  */
-void full_refresh() {
-    LOG_D("Deep refreshing display");
+void eink_full_refresh() {
     epd_poweron();
     epd_clear();
+    epd_poweroff();
+}
+
+/**
+ * @brief Draw the display by drawing the framebuffer to the epd
+ */
+void draw_framebuffer(uint8_t *framebuffer) {
+    epd_poweron();
+    epd_draw_grayscale_image(epd_full_screen(), framebuffer);
     epd_poweroff();
 }
 

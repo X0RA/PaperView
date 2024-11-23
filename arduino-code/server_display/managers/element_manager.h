@@ -18,34 +18,19 @@ private:
     size_t elementCount;
     uint8_t *framebuffer;
 
-    TaskHandle_t touchResponseTaskHandle;
-
-    struct TouchData {
-        DrawElement *element;
-        uint8_t *framebuffer;
-    };
-
-    static void touchResponseTaskWrapper(void *parameter) {
-        TouchData *data = (TouchData *)parameter;
-        data->element->setTouched(true);
-        data->element->executeCallback(data->framebuffer);
-        delete data;
-        vTaskDelete(NULL);
-    }
-
     struct ElementUpdate {
         DrawElement *element;
         RefreshType refresh_type;
         bool needs_clear;
         bool needs_draw;
+        bool is_new_element;
     };
 
     std::vector<ElementUpdate> update_queue;
+    bool elements_changed;
 
 public:
-    ElementManager(uint8_t *fb) {
-        elementCount = 0;
-        framebuffer = fb;
+    ElementManager(uint8_t *fb) : framebuffer(fb), elementCount(0), elements_changed(false) {
         memset(elements, 0, sizeof(elements));
     }
 
@@ -71,8 +56,7 @@ public:
 
     bool processElements(JsonArray &jsonElements) {
         LOG_I("Processing %d elements", jsonElements.size());
-
-        bool elementsChanged = false;
+        elements_changed = false;
 
         // Mark all existing elements as not updated
         for (size_t i = 0; i < MAX_ELEMENTS; i++) {
@@ -97,7 +81,7 @@ public:
             }
 
             if (newElement && newElement->updateFromJson(element)) {
-                elementsChanged |= updateElement(newElement);
+                updateElement(newElement);
             } else {
                 LOG_E("Failed to create or update element of type: %s", type);
                 delete newElement;
@@ -107,13 +91,7 @@ public:
         // Remove elements that weren't updated
         removeUnusedElements();
 
-        // Redraw all active elements if there were changes
-        if (elementsChanged) {
-            LOG_D("Redrawing all active elements");
-            redrawElements();
-        }
-
-        return elementsChanged;
+        return elements_changed;
     }
 
 private:
@@ -191,16 +169,12 @@ private:
             if (!existing->isEqual(*newElement)) {
                 LOG_D("Updating element %d", existing->getId());
                 for (size_t i = 0; i < MAX_ELEMENTS; i++) {
-                    if (elements[i]->getId() == existing->getId()) {
-                        // Queue the clear operation with appropriate refresh type
-                        queueElementUpdate(existing, ELEMENT_REFRESH_PARTIAL, true, false);
-
-                        // Replace the element
-                        delete existing;
+                    if (elements[i] && elements[i]->getId() == existing->getId()) {
+                        // Queue update with clear and draw operations
+                        queueElementUpdate(existing, ELEMENT_REFRESH_PARTIAL, true, false, false);
                         elements[i] = newElement;
-
-                        // Queue the draw operation
-                        queueElementUpdate(newElement, NO_REFRESH, false, true);
+                        queueElementUpdate(newElement, NO_REFRESH, false, true, false);
+                        elements_changed = true;
                         return true;
                     }
                 }
@@ -212,18 +186,22 @@ private:
         } else {
             if (storeElement(newElement)) {
                 // Queue new element draw
-                queueElementUpdate(newElement, ELEMENT_REFRESH_FAST, false, true);
+                queueElementUpdate(newElement, ELEMENT_REFRESH_FAST, false, true, true);
+                elements_changed = true;
                 return true;
             }
         }
         return false;
     }
 
-    void queueElementUpdate(DrawElement *element, RefreshType refresh_type, bool needs_clear = true, bool needs_draw = true) {
+    void queueElementUpdate(DrawElement *element, RefreshType refresh_type,
+                            bool needs_clear = true, bool needs_draw = true,
+                            bool is_new_element = false) {
         update_queue.push_back({.element = element,
                                 .refresh_type = refresh_type,
                                 .needs_clear = needs_clear,
-                                .needs_draw = needs_draw});
+                                .needs_draw = needs_draw,
+                                .is_new_element = is_new_element});
     }
 
 public:
@@ -242,27 +220,12 @@ public:
         return nullptr;
     }
 
-    // Method to handle touch events
+    // Simplified touch handling method
     bool handleTouch(int16_t x, int16_t y) {
         for (int i = MAX_ELEMENTS - 1; i >= 0; i--) {
             if (elements[i] && elements[i]->isPointInside(x, y)) {
-                Serial.printf("Button %d touched\n", elements[i]->getId());
-
-                TouchData *data = new TouchData{elements[i], framebuffer};
-
-                // Create new task for handling touch response and return immediately
-                BaseType_t taskCreated = xTaskCreate(
-                    touchResponseTaskWrapper,
-                    "TouchResponse",
-                    4096,
-                    data,
-                    1,
-                    &touchResponseTaskHandle);
-
-                LOG_D("Touch response task %s", taskCreated == pdPASS ? "created successfully" : "failed to create");
-
-                // Return true regardless of whether task creation succeeded
-                // This ensures the display refresh happens immediately
+                elements[i]->setTouched(true);
+                elements[i]->executeCallback(framebuffer);
                 return true;
             }
         }
@@ -271,7 +234,7 @@ public:
 
     void loop() {
         // Process any queued element updates
-        if (!update_queue.empty()) {
+        while (!update_queue.empty()) {
             auto update = update_queue.front();
             update_queue.erase(update_queue.begin());
 
@@ -281,6 +244,10 @@ public:
             }
 
             if (update.needs_draw) {
+                if (update.is_new_element) {
+                    // For new elements, we might want to use a different refresh approach
+                    update.element->setRefreshType(ELEMENT_REFRESH_FAST);
+                }
                 update.element->draw(framebuffer);
             }
         }

@@ -20,21 +20,34 @@
 #include <Wire.h>
 #include <esp_task_wdt.h>
 
+// for reference, from types.h:
+// enum RefreshType {
+//     NO_REFRESH,               // No refresh (default)
+//     REFETCH_ELEMENTS,         // Refresh just the elements from the API to the element manager
+//     ELEMENT_REFRESH_FAST,     // Fast refresh - Flash background color on area before drawing
+//     ELEMENT_REFRESH_PARTIAL,  // Partial refresh - 2 cycle black to white flash on area before drawing
+//     ELEMENT_REFRESH_COMPLETE, // Complete refresh - 4 cycles black to white flash on area before drawing
+//     DISPLAY_REFRESH_FAST,     // Fast refresh - Flash background color on area before drawing
+//     DISPLAY_REFRESH_PARTIAL,  // Partial refresh - 2 cycle black to white flash on entire display
+//     DISPLAY_REFRESH_COMPLETE  // Complete refresh - 4 cycles black to white flash on entire display
+// };
+
 class ApplicationController {
 private:
-#pragma region Properties
+#pragma region Properties and touch task
     uint8_t *const framebuffer;
     ElementManager elementManager;
     DisplayWebServer webServer;
 
-    // Touch
+    // Touch variables
     TouchDrvGT911 &touch;
     TaskHandle_t touchTaskHandle;
     volatile bool touch_active;
     unsigned long last_touch_time;
     unsigned long last_update_time;
 
-    // Refresh
+    // Atomic refresh type, used to trigger a refresh of the display or elements.
+    // Atomic used to ensure thread safety when updating the refresh type from multiple threads.
     std::atomic<RefreshType> refresh_type{DISPLAY_REFRESH_COMPLETE};
 
     static void touchTaskWrapper(void *parameter) {
@@ -42,6 +55,10 @@ private:
         controller->touchTask();
     }
 
+    /**
+     * @brief Async task that handles touch events, sending the x,y coordinates to the element manager to determine if the touch was on an element.
+     * It will trigger a refetch of the elements from the API if an element was touched.
+     */
     void touchTask() {
         int16_t x, y;
         while (true) {
@@ -70,9 +87,13 @@ private:
 
 #pragma endregion
 
-#pragma region Private Methods
+#pragma region Private Methods (checkScreenRefresh, fetchElementsFromAPI)
 
-    void checkAutoUpdate() {
+    /**
+     * @brief Checks if the display needs to be refreshed based on the last update time.
+     * It will set the refresh type to the appropriate type based on the time since the last whole screen refresh.
+     */
+    void checkScreenRefresh() {
         unsigned long current_time = millis();
         unsigned long time_since_update = current_time - last_update_time;
 
@@ -92,38 +113,35 @@ private:
     }
 
     /**
-     * @brief Update the display from an API response
-     * @param response The API response to update the display from
-     * @return Whether the elements were updated successfully
-     * true = elements updated, display needs to be redrawn
-     * false = no elements updated, display does not need to be redrawn (keeps last image)
+     * @brief Fetches the elements from the API and sends them to the element manager for processing.
      */
-    bool updateDisplayFromResponse(ApiResponse_t &response) {
+    void fetchElementsFromAPI() {
+        ApiResponse_t response = getPage();
+
         if (!response.success) {
             LOG_E("Failed to get API response");
-            return false;
+            return;
         }
 
         DynamicJsonDocument doc = parseJsonResponse(response.response);
         if (doc.isNull()) {
             LOG_E("Failed to parse JSON data");
-            return false;
+            return;
         }
 
         JsonArray elements_data = doc["elements"];
         if (elements_data.isNull()) {
             LOG_E("No elements found in JSON");
-            return false;
+            return;
         }
 
         elementManager.processElements(elements_data);
-        return true;
     }
 
 #pragma endregion
 
 public:
-#pragma region Instantiation Methods
+#pragma region Instantiation Methods including touch thread
     ApplicationController(uint8_t *framebuffer, TouchDrvGT911 &touch) : framebuffer(framebuffer),
                                                                         touch_active(false),
                                                                         last_touch_time(0),
@@ -154,28 +172,29 @@ public:
 
 #pragma endregion
 
-#pragma region Public Methods
+#pragma region Public Methods (loop)
 
     /**
-     * @brief Main loop for the display lifecycle
+     * @brief Main application loop that handles:
+     * - Periodic display refresh to prevent pixel sticking (checkScreenRefresh and webServer.handleClient)
+     * - Fetching new data from API (checkScreenRefresh and touch events)
+     * - Sending data to the element manager for processing (fetchElementsFromAPI)
      */
     void loop() {
         // check if we need to update the display based on timer
-        checkAutoUpdate();
+        checkScreenRefresh();
 
-        // Let element manager handle its own rendering
-        elementManager.loop();
-
-        // update display if needed
+        // This is where we actually refresh the display and fetch new data from the API
         RefreshType current_refresh = refresh_type.load();
         if (current_refresh != NO_REFRESH) {
+            // if current_refresh is REFETCH_ELEMENTS, the display will not flash / unstick pixels and element_manager will handle the refresh for specific areas within it's loop
             refresh_display(current_refresh, framebuffer);
-            ApiResponse_t response = getPage();
-            if (updateDisplayFromResponse(response)) {
-                draw_framebuffer(framebuffer);
-                refresh_type.store(NO_REFRESH);
-            }
+            fetchElementsFromAPI();
+            refresh_type.store(NO_REFRESH);
         }
+
+        // Let element manager handle its own sub element rendering and refresh logic
+        elementManager.loop();
 
         delay(20); // 20ms delay
     }

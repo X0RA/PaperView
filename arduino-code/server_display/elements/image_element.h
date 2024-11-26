@@ -8,12 +8,6 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-enum class ImageType {
-    ICON,
-    SPOTIFY_ALBUM_ART,
-    URL
-};
-
 // TODO: Maybe seperate out the image and the icon types?
 
 class ImageElement : public DrawElement {
@@ -295,6 +289,10 @@ public:
 
 #pragma endregion
 
+    ImageType getImageType() const override {
+        return img_type;
+    }
+
     /**
      * @brief Update the image element from a JSON object
      *
@@ -330,9 +328,6 @@ public:
         y = element["y"].as<int16_t>();
         anchor = getAnchorFromString(element["anchor"] | "bl");
         font_props = FontProperties(); // Default, unused
-        active = true;
-        changed = true;
-        updated = true;
         callback = strdup(callbackContent);
         name = strdup(nameContent);
         endpoint = strdup(endpointContent);
@@ -341,23 +336,18 @@ public:
         width = element["width"].as<int16_t>();
         height = element["height"].as<int16_t>();
         img_type = getImageTypeFromString(endpointContent);
-        if (img_type == ImageType::ICON) {
-            type = ElementType::ICON;
-        }
         return true;
     }
 
 #pragma region isEqual
     bool isEqual(const ImageElement &other) const {
         return DrawElement::isEqual(static_cast<const DrawElement &>(other)) &&
-               strcmp(name, other.name) == 0 &&
-               strcmp(endpoint, other.endpoint) == 0 &&
+               (name == nullptr ? other.name == nullptr : other.name != nullptr && strcmp(name, other.name) == 0) &&
+               (endpoint == nullptr ? other.endpoint == nullptr : other.endpoint != nullptr && strcmp(endpoint, other.endpoint) == 0) &&
                width == other.width &&
                height == other.height &&
-               anchor == other.anchor &&
-               x == other.x &&
-               y == other.y &&
-               filled == other.filled;
+               filled == other.filled &&
+               img_type == other.img_type;
     }
 
     // Add this to maintain the override of the base class method

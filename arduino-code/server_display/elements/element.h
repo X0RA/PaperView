@@ -9,11 +9,17 @@
 #include "../utils/http.h"
 #include "../utils/types.h"
 
+// Forward declare ImageType enum
+enum class ImageType {
+    ICON,
+    SPOTIFY_ALBUM_ART,
+    URL
+};
+
 enum class ElementType {
     TEXT,
     BUTTON,
-    IMAGE,
-    ICON
+    IMAGE
 };
 
 enum class Anchor {
@@ -39,11 +45,8 @@ protected:
     int16_t x;                 // The x position of the element
     int16_t y;                 // The y position of the element
     Anchor anchor;             // The anchor of the element
-    FontProperties font_props; // The properties of the font
     Rect_t bounds;             // The bounds of the element
-    bool active;               // Indicates if the element is currently part of the display
-    bool changed;              // Indicates if the element's visual properties have changed
-    bool updated;              // Indicates if the element was processed in current update cycle
+    FontProperties font_props; // The properties of the font
     bool touched;              // Indicates if the element was touched in current update cycle
     RefreshType refresh_type;  // Current type of refresh to perform on the element
 #pragma endregion
@@ -71,7 +74,7 @@ protected:
     }
 
 public:
-    DrawElement() : id(0), text(nullptr), x(0), y(0), active(false), changed(false), updated(false), callback(nullptr), touched(false) {}
+    DrawElement() : id(0), text(nullptr), x(0), y(0), callback(nullptr), touched(false) {}
 
     // destructor
     virtual ~DrawElement() {
@@ -110,9 +113,13 @@ public:
     // Should work out if this changes updated / changed / both
     virtual void updateElement() = 0;
 
+    // TODO: Sorta messy implementation, but it works for now. Would preffer to have a nicer way that isn't within element class
+    virtual ImageType getImageType() const { return ImageType::ICON; } // Default implementation
+
 #pragma endregion
 
 #pragma region(clearArea, isEqual) Virtual Methods defined in the base class
+
     /**
      * @brief Clear the area of the element
      * @param framebuffer The framebuffer to clear
@@ -136,13 +143,13 @@ public:
         }
 
         if (type == ElementType::IMAGE) {
-            padding_x = 9;
-            padding_y = 9;
-        }
-
-        if (type == ElementType::ICON) {
-            padding_x = 5;
-            padding_y = 5;
+            if (getImageType() == ImageType::ICON) {
+                padding_x = 5;
+                padding_y = 5;
+            } else {
+                padding_x = 9;
+                padding_y = 9;
+            }
         }
 
         if (type == ElementType::BUTTON) {
@@ -208,12 +215,33 @@ public:
      * @return Whether the elements are equal
      */
     virtual bool isEqual(const DrawElement &other) const {
-        return (id == other.id &&
-                strcmp(text, other.text) == 0 &&
-                x == other.x &&
-                y == other.y &&
-                anchor == other.anchor);
-        // &&memcmp(&props, &other.props, sizeof(FontProperties)) == 0);
+        // Check ID first as it's the primary identifier
+        if (id != other.id)
+            return false;
+
+        // Handle text comparison with null checks
+        if (text == nullptr && other.text == nullptr) {
+            // Both null is considered equal
+        } else if (text == nullptr || other.text == nullptr) {
+            return false; // One null, one not null
+        } else if (strcmp(text, other.text) != 0) {
+            return false;
+        }
+
+        // Handle callback comparison with null checks
+        if (callback == nullptr && other.callback == nullptr) {
+            // Both null is considered equal
+        } else if (callback == nullptr || other.callback == nullptr) {
+            return false; // One null, one not null
+        } else if (strcmp(callback, other.callback) != 0) {
+            return false;
+        }
+
+        // Check position and properties
+        return x == other.x &&
+               y == other.y &&
+               anchor == other.anchor &&
+               type == other.type;
     }
 #pragma endregion
 
@@ -234,10 +262,6 @@ public:
             return true;
         }
 
-        if (strcmp(callback, "refresh") == 0) {
-            return true;
-        }
-
         return makeQuickPost(callback);
     }
 
@@ -254,15 +278,9 @@ public:
     String getText() const { return String(text); }
     uint16_t getId() const { return id; }
     RefreshType getRefreshType() const { return refresh_type; }
-    bool isActive() const { return active; }
-    bool isUpdated() const { return updated; }
-    bool isChanged() const { return changed; }
     bool isTouched() const { return touched; }
 
     // setters
-    void setActive(bool value) { active = value; }
-    void setUpdated(bool value) { updated = value; }
-    void setChanged(bool value) { changed = value; }
     void setTouched(bool value) { touched = value; }
     void setRefreshType(RefreshType value) { refresh_type = value; }
     const Rect_t &getBounds() const { return bounds; }

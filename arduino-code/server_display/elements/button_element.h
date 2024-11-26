@@ -149,11 +149,7 @@ public:
 
         // Determine background color based on touch state
         uint8_t background_color;
-        if (touched) {
-            background_color = font_props.bg_color == 0 ? 15 : 255;
-        } else {
-            background_color = font_props.bg_color == 15 ? 0 : 255;
-        }
+        background_color = font_props.bg_color == 15 ? 0 : 255;
 
         // Draw the button
         if (filled) {
@@ -181,8 +177,6 @@ public:
                    framebuffer,
                    BLACK_ON_WHITE,
                    &textProps);
-
-        active = true;
     }
 
     void updateElement() override {
@@ -210,9 +204,6 @@ public:
         padding_y = static_cast<int16_t>(constrain(element["padding_y"] | 5, 0, 50));
         radius = static_cast<uint16_t>(constrain(element["radius"] | 0, 0, 35));
         filled = element["filled"] | false;
-        active = true;
-        changed = true;
-        updated = true;
 
         return true;
     }

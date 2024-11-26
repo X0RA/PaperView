@@ -227,6 +227,7 @@ void eink_full_refresh() {
  * @brief Draw the display by drawing the framebuffer to the epd
  */
 void draw_framebuffer(uint8_t *framebuffer) {
+    LOG_D("Drawing framebuffer");
     epd_poweron();
     epd_draw_grayscale_image(epd_full_screen(), framebuffer);
     epd_poweroff();

@@ -137,6 +137,7 @@ void setupWiFi() {
     }
 }
 #pragma endregion
+
 void setup() {
     Serial.begin(115200);
     // This code would wait for a serial connection before continuing,

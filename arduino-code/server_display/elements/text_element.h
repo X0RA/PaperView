@@ -69,8 +69,6 @@ public:
                    framebuffer,
                    BLACK_ON_WHITE,
                    &font_props);
-
-        active = true;
     }
 
     bool updateFromJson(JsonObject &element) override {
@@ -87,25 +85,13 @@ public:
         y = element["y"].as<int16_t>();
         anchor = getAnchorFromString(element["anchor"] | "bl");
         font_props = get_text_properties(element["level"].as<uint8_t>());
-        active = true;
-        changed = true;
-        updated = true;
 
         return true;
     }
 
     void drawTouched(uint8_t *framebuffer) override {
         LOG_D("Drawing touched text element id=%d", id);
-
-        // First draw the text normally
-        draw(framebuffer);
-
-        // Draw a line through the middle of the text using the stored bounds
-        int32_t line_y = bounds.y + (bounds.height / 2);
-
-        epd_draw_line(bounds.x, line_y,
-                      bounds.x + bounds.width, line_y,
-                      BLACK_ON_WHITE, framebuffer);
+        return;
     }
 
     void updateElement() override {

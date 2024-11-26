@@ -291,7 +291,6 @@ bool saveImageBufferToSD(String filename, uint8_t *img_buffer, uint32_t width, u
     }
 
     String file_path = String(IMAGE_SD_PATH) + String("/") + filename;
-    LOG_I("Saving image to SD card: %s", file_path.c_str());
     File file = SD.open(file_path, FILE_WRITE);
 
     if (!file) {
@@ -323,7 +322,6 @@ bool saveImageBufferToSD(String filename, uint8_t *img_buffer, uint32_t width, u
     }
 
     file.close();
-    LOG_D("Successfully saved image to SD card");
     return true;
 }
 
@@ -340,9 +338,7 @@ bool saveImageBufferToSD(String filename, uint8_t *img_buffer, uint32_t width, u
  */
 bool readImageBufferFromSD(String filename, uint8_t *img_buffer, uint32_t &width, uint32_t &height) {
     String file_path = String(IMAGE_SD_PATH) + String("/") + filename;
-    LOG_D("Checking if image exists on SD card: %s", file_path.c_str());
     if (!SD.exists(file_path)) {
-        LOG_D("Image not found on SD card: %s", file_path.c_str());
         return false;
     }
 
@@ -370,7 +366,6 @@ bool readImageBufferFromSD(String filename, uint8_t *img_buffer, uint32_t &width
     }
 
     file.close();
-    LOG_D("Read image from SD card");
     return true;
 }
 

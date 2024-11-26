@@ -5,6 +5,7 @@
 #include "../managers/element_manager.h"
 #include "../utils/eink.h"
 #include "../utils/http.h"
+#include "../utils/wifi.h"
 #include "../utils/server.h"
 #include "../utils/storage.h"
 #include "../utils/types.h"
@@ -45,6 +46,9 @@ private:
     volatile bool touch_active;
     unsigned long last_touch_time;
     unsigned long last_update_time;
+
+    // wifi variables
+    unsigned long last_wifi_check_time;
 
     // Atomic refresh type, used to trigger a refresh of the display or elements.
     // Atomic used to ensure thread safety when updating the refresh type from multiple threads.
@@ -92,23 +96,63 @@ private:
     /**
      * @brief Checks if the display needs to be refreshed based on the last update time.
      * It will set the refresh type to the appropriate type based on the time since the last whole screen refresh.
+     * #define ELEMENT_REFRESH_INTERVAL 30000            // ms (30 seconds) when the page is updated (no flashing)
+     * #define DISPLAY_REFRESH_FAST_INTERVAL 150000      // ms (2.5 minutes) when the page is updated (no flashing)
+     * #define DISPLAY_REFRESH_PARTIAL_INTERVAL 300000   // ms (5 minutes) when the page is updated (with flashing)
+     * #define DISPLAY_REFRESH_COMPLETE_INTERVAL 1800000 // ms (30 minutes) when the page is updated (with flashing)
+
      */
     void checkScreenRefresh() {
         unsigned long current_time = millis();
         unsigned long time_since_update = current_time - last_update_time;
 
-        // Check longest interval first
+        // Store the most aggressive refresh type needed
+        RefreshType needed_refresh = NO_REFRESH;
+
+        // Check all intervals and use the most aggressive refresh type
         if (time_since_update >= DISPLAY_REFRESH_COMPLETE_INTERVAL) {
-            refresh_type.store(DISPLAY_REFRESH_COMPLETE);
+            needed_refresh = DISPLAY_REFRESH_COMPLETE;
         } else if (time_since_update >= DISPLAY_REFRESH_PARTIAL_INTERVAL) {
-            refresh_type.store(DISPLAY_REFRESH_PARTIAL);
+            needed_refresh = DISPLAY_REFRESH_PARTIAL;
         } else if (time_since_update >= DISPLAY_REFRESH_FAST_INTERVAL) {
-            refresh_type.store(DISPLAY_REFRESH_FAST);
+            needed_refresh = DISPLAY_REFRESH_FAST;
+        } else if (time_since_update >= ELEMENT_REFRESH_INTERVAL) {
+            needed_refresh = REFETCH_ELEMENTS;
         }
 
-        // Only update the time if we actually set a refresh type
-        if (time_since_update >= DISPLAY_REFRESH_FAST_INTERVAL) {
+        // Only update if we need a refresh and it's more aggressive than current
+        if (needed_refresh != NO_REFRESH &&
+            needed_refresh > refresh_type.load()) {
+            refresh_type.store(needed_refresh);
             last_update_time = current_time;
+        }
+    }
+
+    /**
+     * @brief Checks if the WiFi connection is active, and attempts to connect if not.
+     */
+    void checkWifiConnection() {
+        unsigned long current_time = millis();
+
+        // Only check wifi connection after interval has passed
+        if (current_time - last_wifi_check_time < WIFI_CHECK_INTERVAL) {
+            return;
+        }
+
+        last_wifi_check_time = current_time;
+        bool connected = isWiFiConnected();
+
+        if (connected) {
+            return;
+        }
+
+        while (!connected) {
+            connectToWiFi();
+            connected = isWiFiConnected();
+            if (connected) {
+                break;
+            }
+            delay(500);
         }
     }
 
@@ -181,6 +225,9 @@ public:
      * - Sending data to the element manager for processing (fetchElementsFromAPI)
      */
     void loop() {
+        // Check if we need to connect to WiFi
+        checkWifiConnection();
+
         // check if we need to update the display based on timer
         checkScreenRefresh();
 
